@@ -17,8 +17,7 @@ import ChallengeControl from '../components/ChallengeControl';
 import RefereeControls from '../components/RefereeControls';
 import TimeoutTimer from '../components/TimeoutTimer';
 
-// --- SUB-COMPONENTS ---
-
+// --- SUB-COMPONENTS (Unchanged) ---
 const PlayerTag = ({ player, isSelected, teamColor, isLibero, isBlocker }) => {
     const baseClass = "relative z-20 w-full py-1 px-2 md:px-3 rounded-lg shadow-sm flex items-center justify-between transition-all duration-200 cursor-pointer select-none border-l-[6px]";
     let bgClass = "bg-white";
@@ -123,26 +122,27 @@ const TimeoutButton = ({ onClick, used, limit, disabled }) => (
 // --- LOGIC HELPERS ---
 
 const createSnapshot = (state) => ({
+    ...state,
     score: { ...state.score },
-    servingTeam: state.servingTeam,
-    matchPhase: state.matchPhase,
     rotations: { home: [...state.rotations.home], away: [...state.rotations.away] },
-    liberoOriginals: { home: { ...state.liberoOriginals.home }, away: { ...state.liberoOriginals.away } }
+    benches: { home: [...state.benches.home], away: [...state.benches.away] },
+    liberoOriginals: { home: { ...state.liberoOriginals.home }, away: { ...state.liberoOriginals.away } },
+    subsUsed: { ...state.subsUsed },
+    timeoutsUsed: { ...state.timeoutsUsed },
+    challengesUsed: { ...state.challengesUsed }
 });
 
-// 
 const processRotation = (teamRotation, teamOriginals) => {
     let newRotation = [...teamRotation];
     let newOriginals = { ...teamOriginals };
     let autoSwapLog = null;
+    let returningPlayer = null;
 
     // 1. ROTATE
-    // Array Order: [P1, P6, P5, P4, P3, P2] -> [P2, P1, P6, P5, P4, P3]
     const mover = newRotation.pop();
     newRotation.unshift(mover);
 
     // 2. CHECK FRONT-LEFT (Position 4, Index 3) for Libero
-    // Liberos are NOT allowed in front row (Indices 3, 4, 5 correspond to Zones 4, 3, 2)
     const playerAtPos4 = newRotation[3];
 
     if (playerAtPos4 && playerAtPos4.isLibero) {
@@ -151,6 +151,7 @@ const processRotation = (teamRotation, teamOriginals) => {
         if (originalPlayer) {
             newRotation[3] = originalPlayer;
             delete newOriginals[playerAtPos4.id];
+            returningPlayer = originalPlayer;
             autoSwapLog = {
                 type: 'correction',
                 text: `LIBERO ROTATION: ${playerAtPos4.name} (L) auto-swapped for ${originalPlayer.name}`
@@ -160,23 +161,17 @@ const processRotation = (teamRotation, teamOriginals) => {
         }
     }
 
-    return { newRotation, newOriginals, autoSwapLog };
+    return { newRotation, newOriginals, autoSwapLog, returningPlayer };
 };
 
-// --- INITIAL STATE FACTORY ---
 const createInitialState = (rosters, savedState) => {
     if (savedState) {
         return {
             ...savedState,
-            // Backwards compatibility for older saves
-            liberoLists: savedState.liberoLists || {
-                home: rosters.home.liberos || [],
-                away: rosters.away.liberos || []
-            },
+            liberoLists: savedState.liberoLists || { home: rosters.home.liberos || [], away: rosters.away.liberos || [] },
             liberoOriginals: savedState.liberoOriginals || { home: {}, away: {} }
         };
     }
-
     return {
         score: { home: 0, away: 0 },
         matchPhase: 'PRE_SERVE',
@@ -194,7 +189,7 @@ const createInitialState = (rosters, savedState) => {
         benches: { home: [...rosters.home.bench], away: [...rosters.away.bench] },
         logs: [{ id: Date.now(), time: new Date().toLocaleTimeString(), text: "Match Started", type: 'info' }],
         selectedPlayer: null,
-        rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null }
+        rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null, pendingResult: null }
     };
 };
 
@@ -212,7 +207,6 @@ const gameReducer = (state, action) => {
             const teamCode = team === 'home' ? 'HOME' : 'AWAY';
             if (state.timeoutsUsed[team] >= 2) return state;
             if (!['PRE_SERVE', 'SERVE'].includes(state.matchPhase)) return state;
-
             const newTimeouts = { ...state.timeoutsUsed };
             newTimeouts[team] += 1;
             return { ...state, timeoutsUsed: newTimeouts, logs: addLog(`TIMEOUT CALLED by ${teamCode} (${newTimeouts[team]}/2)`, 'highlight') };
@@ -224,9 +218,12 @@ const gameReducer = (state, action) => {
             const snapshot = createSnapshot(state);
 
             const shouldRotate = winner !== state.servingTeam;
-            const { newRotation, newOriginals, autoSwapLog } = shouldRotate
+            const { newRotation, newOriginals, autoSwapLog, returningPlayer } = shouldRotate
                 ? processRotation(state.rotations[winner], state.liberoOriginals[winner])
-                : { newRotation: state.rotations[winner], newOriginals: state.liberoOriginals[winner] };
+                : { newRotation: state.rotations[winner], newOriginals: state.liberoOriginals[winner], returningPlayer: null };
+
+            let newBenches = { ...state.benches };
+            if (returningPlayer) newBenches[winner] = newBenches[winner].filter(p => p.id !== returningPlayer.id);
 
             let l = addLog(`REFEREE: ${reason} -> POINT ${teamCode}`, 'highlight');
             if (autoSwapLog) l = [{ id: Date.now() + 1, time: getTime(), text: autoSwapLog.text, type: autoSwapLog.type }, ...l];
@@ -234,7 +231,8 @@ const gameReducer = (state, action) => {
             return {
                 ...state, previousState: snapshot, score: { ...state.score, [winner]: state.score[winner] + 1 }, servingTeam: winner,
                 rotations: { ...state.rotations, [winner]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [winner]: newOriginals },
-                matchPhase: 'PRE_SERVE', logs: l, selectedPlayer: null, rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null }
+                benches: newBenches,
+                matchPhase: 'PRE_SERVE', logs: l, selectedPlayer: null, rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null, pendingResult: null }
             };
         }
 
@@ -246,9 +244,44 @@ const gameReducer = (state, action) => {
                 newChallenges[challenger] += 1;
                 return { ...state, challengesUsed: newChallenges, logs: addLog(`CHALLENGE FAILED`, 'danger') };
             }
+
             if (!state.previousState) return state;
 
-            return { ...state.previousState, logs: addLog(`CHALLENGE SUCCESS: Score Corrected`, 'success') };
+            const restored = state.previousState;
+
+            // [FIX FOR ACE REVERSAL]
+            // If the restored state was SERVE_LANDING with an ACE result,
+            // and the challenge succeeded (meaning ball was OUT),
+            // we must treat this as a Service Error and Sideout to the Challenger.
+            if (restored.matchPhase === 'SERVE_LANDING' && restored.rallyData.serveResult === 'ACE') {
+                const winner = challenger; // Challenger (Receiver) wins point
+                const winnerCode = winner === 'home' ? 'HOME' : 'AWAY';
+
+                // Process Sideout Rotation for the winner
+                const { newRotation, newOriginals, autoSwapLog, returningPlayer } = processRotation(restored.rotations[winner], restored.liberoOriginals[winner]);
+
+                let newBenches = { ...restored.benches };
+                if (returningPlayer) newBenches[winner] = newBenches[winner].filter(p => p.id !== returningPlayer.id);
+
+                let l = [{ id: Date.now(), time: getTime(), text: `CHALLENGE SUCCESS: Ace Overturned (OUT) -> POINT ${winnerCode}`, type: 'success' }, ...restored.logs];
+                if (autoSwapLog) l = [{ id: Date.now() + 1, time: getTime(), text: autoSwapLog.text, type: autoSwapLog.type }, ...l];
+
+                return {
+                    ...restored,
+                    score: { ...restored.score, [winner]: restored.score[winner] + 1 },
+                    servingTeam: winner,
+                    rotations: { ...restored.rotations, [winner]: newRotation },
+                    liberoOriginals: { ...restored.liberoOriginals, [winner]: newOriginals },
+                    benches: newBenches,
+                    matchPhase: 'PRE_SERVE', // Go to next serve
+                    logs: l,
+                    rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null, pendingResult: null },
+                    previousState: null // Consume snapshot
+                };
+            }
+
+            // Standard Undo for other states
+            return { ...state.previousState, logs: addLog(`CHALLENGE SUCCESS: State Restored`, 'success') };
         }
 
         case 'REQUEST_SUB': return { ...state, matchPhase: 'SUBSTITUTION', actionTeam: action.payload, selectedPlayer: null };
@@ -265,13 +298,13 @@ const gameReducer = (state, action) => {
             const { libero, courtPlayer, zoneIndex, team: lTeam } = action.payload;
             const newLRotation = [...state.rotations[lTeam]];
             const newLOriginals = { ...state.liberoOriginals[lTeam] };
+            const newLBench = [...state.benches[lTeam]];
 
             if (libero.isLibero) {
-                // SWAP IN
                 newLRotation[zoneIndex] = libero;
                 newLOriginals[libero.id] = courtPlayer;
+                newLBench.push(courtPlayer);
             } else {
-                // SWAP OUT
                 newLRotation[zoneIndex] = libero;
                 delete newLOriginals[courtPlayer.id];
             }
@@ -279,6 +312,7 @@ const gameReducer = (state, action) => {
             return {
                 ...state, rotations: { ...state.rotations, [lTeam]: newLRotation },
                 liberoOriginals: { ...state.liberoOriginals, [lTeam]: newLOriginals },
+                benches: { ...state.benches, [lTeam]: newLBench },
                 matchPhase: 'PRE_SERVE', selectedPlayer: null, actionTeam: null,
                 logs: addLog(`LIBERO SWAP: ${fmt(libero)} <-> ${fmt(courtPlayer)}`, 'info')
             };
@@ -287,48 +321,26 @@ const gameReducer = (state, action) => {
         case 'SELECT_PLAYER': {
             const p = action.payload;
             if (!p) return state;
-
-            // TEAM DETECTION (Safe Chaining)
-            const isHome = state.rotations.home.some(x => x?.id === p.id)
-                || state.benches.home.some(x => x.id === p.id)
-                || state.liberoLists?.home?.some(x => x.id === p.id);
+            const isHome = state.rotations.home.some(x => x?.id === p.id) || state.benches.home.some(x => x.id === p.id) || state.liberoLists?.home?.some(x => x.id === p.id);
             const pTeam = isHome ? 'home' : 'away';
 
-            // --- SUB / SWAP LOGIC ---
             if (state.matchPhase === 'SUBSTITUTION' || state.matchPhase === 'LIBERO_SWAP') {
                 if (pTeam !== state.actionTeam) return state;
-
-                // 1. First Click (Incoming Player)
                 if (!state.selectedPlayer) {
                     if (state.matchPhase === 'SUBSTITUTION' && !state.benches[pTeam].find(b => b.id === p.id)) return state;
                     return { ...state, selectedPlayer: p };
-                }
-                // 2. Second Click (Outgoing Player)
-                else {
-                    const p1 = state.selectedPlayer;
-                    const p2 = p;
-
-                    if (state.matchPhase === 'SUBSTITUTION') {
-                        return gameReducer(state, { type: 'EXECUTE_SUB', payload: { benchPlayer: p1, courtPlayer: p2 } });
-                    }
+                } else {
+                    const p1 = state.selectedPlayer; const p2 = p;
+                    if (state.matchPhase === 'SUBSTITUTION') return gameReducer(state, { type: 'EXECUTE_SUB', payload: { benchPlayer: p1, courtPlayer: p2 } });
                     if (state.matchPhase === 'LIBERO_SWAP') {
-                        // Swap IN: p1 is Libero, p2 is Court Player
                         if (p1.isLibero && !p2.isLibero) {
                             const idx = state.rotations[pTeam].findIndex(r => r && r.id === p2.id);
-
-                            // VALIDATION: INDICES 0 (Pos 1), 1 (Pos 6), 2 (Pos 5) ARE BACK ROW
-                            if (idx > 2) {
-                                alert("Invalid Zone! Libero can only enter Back Row (Zones 1, 6, 5).");
-                                return { ...state, selectedPlayer: null };
-                            }
-
+                            if (idx > 2) { alert("Invalid Zone! Libero can only enter Back Row (Zones 1, 6, 5)."); return { ...state, selectedPlayer: null }; }
                             return gameReducer(state, { type: 'EXECUTE_LIBERO_SWAP', payload: { libero: p1, courtPlayer: p2, zoneIndex: idx, team: pTeam } });
                         }
                     }
                 }
             }
-
-            // ... (Standard logic)
             const pTeamStandard = (state.rotations.home.find(x => x?.id === p.id)) ? 'home' : 'away';
             if (state.matchPhase === 'SELECT_BLOCKERS') { const defTeam = state.possession === 'home' ? 'away' : 'home'; if (pTeamStandard !== defTeam) return state; return gameReducer(state, { type: 'TOGGLE_BLOCKER', payload: p }); }
             if (state.matchPhase === 'COVER') { if (pTeamStandard !== state.possession) return state; return gameReducer(state, { type: 'EXECUTE_COVER', payload: { ...p } }); }
@@ -350,25 +362,27 @@ const gameReducer = (state, action) => {
             if (current === 'LANDING') { if (state.rallyData.attackType === 'Dump') return { ...state, matchPhase: 'SET', selectedPlayer: state.rallyData.setter, rallyData: { ...state.rallyData, attackType: null } }; return { ...state, matchPhase: 'ATTACK', selectedPlayer: state.rallyData.attacker }; }
             if (current === 'DIG_DECISION') return { ...state, matchPhase: 'LANDING', selectedPlayer: null };
             if (current === 'BLOCK_RESULT') return { ...state, matchPhase: 'DIG_DECISION', selectedPlayer: state.rallyData.target };
-            if (current === 'SELECT_BLOCKERS') return { ...state, matchPhase: 'BLOCK_RESULT', selectedPlayer: null, rallyData: { ...state.rallyData, blockers: [] } };
+            if (current === 'SELECT_BLOCKERS') return { ...state, matchPhase: 'BLOCK_RESULT', selectedPlayer: null, rallyData: { ...state.rallyData, blockers: [], pendingResult: null } };
             if (current === 'COVER') return { ...state, matchPhase: 'BLOCK_RESULT', selectedPlayer: null };
             return state;
         }
+
         case 'INIT_SERVE':
             if (state.matchPhase !== 'PRE_SERVE') return state;
-
-            // CHECK LIBERO SERVE RULE
             const currentServer = state.rotations[state.servingTeam][0];
-            if (currentServer && currentServer.isLibero) {
-                alert("WARNING: Libero in Service Position (Zone 1). They must rotate out or swap before serving.");
-            }
-
-            return { ...state, matchPhase: 'SERVE', lastServer: state.servingTeam, selectedPlayer: currentServer, possession: state.servingTeam, rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null } };
+            if (currentServer && currentServer.isLibero) alert("WARNING: Libero in Service Position (Zone 1). They must rotate out or swap before serving.");
+            return { ...state, matchPhase: 'SERVE', lastServer: state.servingTeam, selectedPlayer: currentServer, possession: state.servingTeam, rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null, pendingResult: null } };
 
         case 'SET_SERVE_TYPE': return { ...state, rallyData: { ...state.rallyData, serveType: action.payload } };
         case 'SET_SERVE_RESULT': {
             const result = action.payload; const opp = state.servingTeam === 'home' ? 'away' : 'home';
-            if (result === 'ERROR') { const snapshot = createSnapshot(state); const { newRotation, newOriginals } = processRotation(state.rotations[opp], state.liberoOriginals[opp]); return { ...state, previousState: snapshot, score: { ...state.score, [opp]: state.score[opp] + 1 }, servingTeam: opp, rotations: { ...state.rotations, [opp]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [opp]: newOriginals }, matchPhase: 'PRE_SERVE', selectedPlayer: null, logs: addLog(`SERVE ERROR -> POINT`, 'danger') }; }
+            if (result === 'ERROR') {
+                const snapshot = createSnapshot(state);
+                const { newRotation, newOriginals, returningPlayer } = processRotation(state.rotations[opp], state.liberoOriginals[opp]);
+                let newBenches = { ...state.benches };
+                if (returningPlayer) newBenches[opp] = newBenches[opp].filter(p => p.id !== returningPlayer.id);
+                return { ...state, previousState: snapshot, score: { ...state.score, [opp]: state.score[opp] + 1 }, servingTeam: opp, rotations: { ...state.rotations, [opp]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [opp]: newOriginals }, benches: newBenches, matchPhase: 'PRE_SERVE', selectedPlayer: null, logs: addLog(`SERVE ERROR -> POINT`, 'danger') };
+            }
             return { ...state, rallyData: { ...state.rallyData, serveResult: result }, matchPhase: 'SERVE_LANDING', selectedPlayer: null, logs: addLog(`Serve -> ${result}`, 'info') };
         }
         case 'SELECT_LANDING_ZONE': { const { zoneIndex, opponentTeam } = action.payload; const zoneToIdxMap = { 1: 0, 6: 1, 5: 2, 4: 3, 3: 4, 2: 5 }; const rec = state.rotations[opponentTeam][zoneToIdxMap[zoneIndex]]; if (state.matchPhase === 'SERVE_LANDING') { if (state.rallyData.serveResult === 'ACE') { const snapshot = createSnapshot(state); return { ...state, previousState: snapshot, score: { ...state.score, [state.servingTeam]: state.score[state.servingTeam] + 1 }, matchPhase: 'PRE_SERVE', logs: addLog(`ACE!`, 'success') }; } return { ...state, matchPhase: 'RECEPTION', possession: opponentTeam, selectedPlayer: rec, rallyData: { ...state.rallyData, receiver: rec } }; } return { ...state, selectedPlayer: rec, matchPhase: 'DIG_DECISION', rallyData: { ...state.rallyData, target: rec } }; }
@@ -376,11 +390,83 @@ const gameReducer = (state, action) => {
         case 'EXECUTE_SET': if (action.payload.type === 'Dump') return { ...state, matchPhase: 'LANDING', selectedPlayer: null, rallyData: { ...state.rallyData, setter: state.selectedPlayer, attacker: state.selectedPlayer, attackType: 'Dump' }, logs: addLog(`DUMP`, 'info') }; return { ...state, matchPhase: 'ATTACK', selectedPlayer: null, rallyData: { ...state.rallyData, setter: state.selectedPlayer }, logs: addLog(`SET`, 'info') };
         case 'EXECUTE_ATTACK': return { ...state, rallyData: { ...state.rallyData, attacker: state.selectedPlayer, attackType: action.payload.type }, matchPhase: 'LANDING', selectedPlayer: null, logs: addLog(`ATTACK`, 'info') };
         case 'BLOCK_DETECTED': return { ...state, matchPhase: 'BLOCK_RESULT', selectedPlayer: null };
-        case 'BLOCK_OUTCOME': { const attTeam = state.possession; const defTeam = attTeam === 'home' ? 'away' : 'home'; if (action.payload === 'TOUCH_OUT') { const snapshot = createSnapshot(state); const { newRotation, newOriginals } = (attTeam !== state.servingTeam) ? processRotation(state.rotations[attTeam], state.liberoOriginals[attTeam]) : { newRotation: state.rotations[attTeam], newOriginals: state.liberoOriginals[attTeam] }; return { ...state, previousState: snapshot, score: { ...state.score, [attTeam]: state.score[attTeam] + 1 }, servingTeam: attTeam, rotations: { ...state.rotations, [attTeam]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [attTeam]: newOriginals }, matchPhase: 'PRE_SERVE', logs: addLog(`BLOCK TOUCH OUT`, 'success') }; } if (action.payload === 'SHUTDOWN') { const snapshot = createSnapshot(state); const { newRotation, newOriginals } = (defTeam !== state.servingTeam) ? processRotation(state.rotations[defTeam], state.liberoOriginals[defTeam]) : { newRotation: state.rotations[defTeam], newOriginals: state.liberoOriginals[defTeam] }; return { ...state, previousState: snapshot, score: { ...state.score, [defTeam]: state.score[defTeam] + 1 }, servingTeam: defTeam, rotations: { ...state.rotations, [defTeam]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [defTeam]: newOriginals }, matchPhase: 'PRE_SERVE', logs: addLog(`SHUTDOWN`, 'highlight') }; } if (action.payload === 'REBOUND') return { ...state, matchPhase: 'COVER', possession: attTeam, logs: addLog(`REBOUND`, 'info'), selectedPlayer: null }; return { ...state, matchPhase: 'RECEPTION', possession: defTeam, logs: addLog(`SOFT BLOCK`, 'info'), selectedPlayer: null }; }
+        case 'BLOCK_OUTCOME': {
+            const attTeam = state.possession;
+            const defTeam = attTeam === 'home' ? 'away' : 'home';
+
+            if (action.payload === 'SHUTDOWN') {
+                return {
+                    ...state,
+                    matchPhase: 'SELECT_BLOCKERS',
+                    rallyData: { ...state.rallyData, pendingResult: 'SHUTDOWN' },
+                    logs: addLog(`SHUTDOWN (Select Blockers)`, 'info')
+                };
+            }
+
+            if (action.payload === 'TOUCH_OUT') {
+                const snapshot = createSnapshot(state);
+                const shouldRotate = attTeam !== state.servingTeam;
+                const { newRotation, newOriginals, returningPlayer } = shouldRotate ? processRotation(state.rotations[attTeam], state.liberoOriginals[attTeam]) : { newRotation: state.rotations[attTeam], newOriginals: state.liberoOriginals[attTeam], returningPlayer: null };
+                let newBenches = { ...state.benches };
+                if (returningPlayer) newBenches[attTeam] = newBenches[attTeam].filter(p => p.id !== returningPlayer.id);
+                return { ...state, previousState: snapshot, score: { ...state.score, [attTeam]: state.score[attTeam] + 1 }, servingTeam: attTeam, rotations: { ...state.rotations, [attTeam]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [attTeam]: newOriginals }, benches: newBenches, matchPhase: 'PRE_SERVE', logs: addLog(`BLOCK TOUCH OUT`, 'success') };
+            }
+            if (action.payload === 'REBOUND') return { ...state, matchPhase: 'COVER', possession: attTeam, logs: addLog(`REBOUND`, 'info'), selectedPlayer: null };
+            return { ...state, matchPhase: 'RECEPTION', possession: defTeam, logs: addLog(`SOFT BLOCK`, 'info'), selectedPlayer: null };
+        }
         case 'EXECUTE_COVER': return { ...state, matchPhase: 'SET', selectedPlayer: null, logs: addLog(`COVER`, 'info') };
         case 'TOGGLE_BLOCKER': { const p = action.payload; const currentBlockers = state.rallyData.blockers; const exists = currentBlockers.find(b => b.id === p.id); const newBlockers = exists ? currentBlockers.filter(b => b.id !== p.id) : [...currentBlockers, p]; return { ...state, rallyData: { ...state.rallyData, blockers: newBlockers } }; }
-        case 'CONFIRM_BLOCK': return { ...state, matchPhase: 'BLOCK_RESULT', selectedPlayer: null };
-        case 'ATTACK_RESULT': { const { result } = action.payload; const attTeam = state.possession; const defTeam = attTeam === 'home' ? 'away' : 'home'; if (result === 'KILL') { const snapshot = createSnapshot(state); const { newRotation, newOriginals } = (attTeam !== state.servingTeam) ? processRotation(state.rotations[attTeam], state.liberoOriginals[attTeam]) : { newRotation: state.rotations[attTeam], newOriginals: state.liberoOriginals[attTeam] }; return { ...state, previousState: snapshot, score: { ...state.score, [attTeam]: state.score[attTeam] + 1 }, servingTeam: attTeam, rotations: { ...state.rotations, [attTeam]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [attTeam]: newOriginals }, matchPhase: 'PRE_SERVE', logs: addLog(`KILL -> POINT`, 'success') }; } if (result === 'ERROR') { const snapshot = createSnapshot(state); const { newRotation, newOriginals } = (defTeam !== state.servingTeam) ? processRotation(state.rotations[defTeam], state.liberoOriginals[defTeam]) : { newRotation: state.rotations[defTeam], newOriginals: state.liberoOriginals[defTeam] }; return { ...state, previousState: snapshot, score: { ...state.score, [defTeam]: state.score[defTeam] + 1 }, servingTeam: defTeam, rotations: { ...state.rotations, [defTeam]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [defTeam]: newOriginals }, matchPhase: 'PRE_SERVE', logs: addLog(`ATTACK ERROR`, 'danger') }; } if (result === 'DIG') return { ...state, matchPhase: 'SET', possession: defTeam, logs: addLog(`DIG`, 'info'), selectedPlayer: null }; return state; }
+
+        case 'CONFIRM_BLOCK': {
+            const { pendingResult } = state.rallyData;
+
+            if (pendingResult === 'SHUTDOWN') {
+                const defTeam = state.possession === 'home' ? 'away' : 'home';
+                const snapshot = createSnapshot(state);
+                const shouldRotate = defTeam !== state.servingTeam;
+                const { newRotation, newOriginals, returningPlayer } = shouldRotate ? processRotation(state.rotations[defTeam], state.liberoOriginals[defTeam]) : { newRotation: state.rotations[defTeam], newOriginals: state.liberoOriginals[defTeam], returningPlayer: null };
+                let newBenches = { ...state.benches };
+                if (returningPlayer) newBenches[defTeam] = newBenches[defTeam].filter(p => p.id !== returningPlayer.id);
+
+                return {
+                    ...state,
+                    previousState: snapshot,
+                    score: { ...state.score, [defTeam]: state.score[defTeam] + 1 },
+                    servingTeam: defTeam,
+                    rotations: { ...state.rotations, [defTeam]: newRotation },
+                    liberoOriginals: { ...state.liberoOriginals, [defTeam]: newOriginals },
+                    benches: newBenches,
+                    matchPhase: 'PRE_SERVE',
+                    logs: addLog(`SHUTDOWN POINT`, 'highlight'),
+                    selectedPlayer: null,
+                    rallyData: { ...state.rallyData, blockers: [], pendingResult: null }
+                };
+            }
+
+            return { ...state, matchPhase: 'BLOCK_RESULT', selectedPlayer: null };
+        }
+
+        case 'ATTACK_RESULT': {
+            const { result } = action.payload; const attTeam = state.possession; const defTeam = attTeam === 'home' ? 'away' : 'home';
+            if (result === 'KILL') {
+                const snapshot = createSnapshot(state);
+                const shouldRotate = attTeam !== state.servingTeam;
+                const { newRotation, newOriginals, returningPlayer } = shouldRotate ? processRotation(state.rotations[attTeam], state.liberoOriginals[attTeam]) : { newRotation: state.rotations[attTeam], newOriginals: state.liberoOriginals[attTeam], returningPlayer: null };
+                let newBenches = { ...state.benches };
+                if (returningPlayer) newBenches[attTeam] = newBenches[attTeam].filter(p => p.id !== returningPlayer.id);
+                return { ...state, previousState: snapshot, score: { ...state.score, [attTeam]: state.score[attTeam] + 1 }, servingTeam: attTeam, rotations: { ...state.rotations, [attTeam]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [attTeam]: newOriginals }, benches: newBenches, matchPhase: 'PRE_SERVE', logs: addLog(`KILL -> POINT`, 'success') };
+            }
+            if (result === 'ERROR') {
+                const snapshot = createSnapshot(state);
+                const shouldRotate = defTeam !== state.servingTeam;
+                const { newRotation, newOriginals, returningPlayer } = shouldRotate ? processRotation(state.rotations[defTeam], state.liberoOriginals[defTeam]) : { newRotation: state.rotations[defTeam], newOriginals: state.liberoOriginals[defTeam], returningPlayer: null };
+                let newBenches = { ...state.benches };
+                if (returningPlayer) newBenches[defTeam] = newBenches[defTeam].filter(p => p.id !== returningPlayer.id);
+                return { ...state, previousState: snapshot, score: { ...state.score, [defTeam]: state.score[defTeam] + 1 }, servingTeam: defTeam, rotations: { ...state.rotations, [defTeam]: newRotation }, liberoOriginals: { ...state.liberoOriginals, [defTeam]: newOriginals }, benches: newBenches, matchPhase: 'PRE_SERVE', logs: addLog(`ATTACK ERROR`, 'danger') };
+            }
+            if (result === 'DIG') return { ...state, matchPhase: 'SET', possession: defTeam, logs: addLog(`DIG`, 'info'), selectedPlayer: null };
+            return state;
+        }
         default: return state;
     }
 };
@@ -425,7 +511,7 @@ export default function VolleyballTracker() {
     };
 
     const handleChallengeResult = (result) => {
-        dispatch({ type: 'CHALLENGE_RESULT', payload: { team: showChallenge, ...result } });
+        dispatch({ type: 'CHALLENGE_RESULT', payload: { team: showChallenge, success: result.success } });
         setShowChallenge(null);
     };
 
@@ -447,9 +533,7 @@ export default function VolleyballTracker() {
         else if (['RECEPTION', 'SET', 'ATTACK', 'COVER'].includes(state.matchPhase)) { if (state.possession === teamName) isClickable = true; }
         else if ((state.matchPhase === 'LANDING' || state.matchPhase === 'SERVE_LANDING' || state.matchPhase === 'DIG_DECISION') && state.possession !== teamName) { isClickable = true; highlight = true; }
 
-        else if (state.matchPhase === 'LIBERO_SWAP' && state.actionTeam === teamName && state.selectedPlayer) {
-            // Logic handled in loop below
-        }
+        else if (state.matchPhase === 'LIBERO_SWAP' && state.actionTeam === teamName && state.selectedPlayer) { }
         else if (state.matchPhase === 'SUBSTITUTION' && state.actionTeam === teamName && state.selectedPlayer) isClickable = true;
         else if (state.matchPhase === 'SELECT_BLOCKERS') { const defTeam = state.possession === 'home' ? 'away' : 'home'; if (teamName === defTeam) isClickable = true; }
 
@@ -460,15 +544,9 @@ export default function VolleyballTracker() {
                     const p = getP(z);
                     let zoneDisabled = !isClickable && !highlight && state.selectedPlayer?.id !== p?.id;
 
-                    // --- PRECISE LIBERO ZONING (1, 5, 6 ALLOWED) ---
                     if (state.matchPhase === 'LIBERO_SWAP' && state.actionTeam === teamName && state.selectedPlayer) {
                         const allowedZones = [1, 5, 6];
-                        if (allowedZones.includes(z)) {
-                            zoneDisabled = false;
-                            if (!zoneDisabled) highlight = true;
-                        } else {
-                            zoneDisabled = true;
-                        }
+                        if (allowedZones.includes(z)) { zoneDisabled = false; if (!zoneDisabled) highlight = true; } else { zoneDisabled = true; }
                     }
 
                     if (state.matchPhase === 'SELECT_BLOCKERS') { const defTeam = state.possession === 'home' ? 'away' : 'home'; if (teamName === defTeam) zoneDisabled = false; }
@@ -557,7 +635,6 @@ export default function VolleyballTracker() {
             </div>
             <div className="flex flex-col gap-1 w-full">
                 {liberos.map(lib => {
-                    // Check if libero is on court by checking rotations
                     const isOnCourt = rotation.find(r => r && r.id === lib.id);
                     return isOnCourt
                         ? (<div key={lib.id} className="w-full h-12 border-2 border-dashed border-slate-300 rounded bg-slate-50 flex items-center justify-center text-[9px] text-slate-400 font-bold tracking-widest select-none">ON COURT</div>)
@@ -569,7 +646,6 @@ export default function VolleyballTracker() {
 
     return (
         <div className="w-full h-screen bg-slate-100 flex flex-col font-sans overflow-hidden text-slate-800">
-            {/* POPUPS */}
             {showReferee && (<div className="fixed inset-0 z-[100] flex items-center justify-center"><RefereeControls onPointAwarded={handleRefereeDecision} onClose={() => setShowReferee(false)} /></div>)}
             {showChallenge && (<ChallengeControl team={showChallenge} onResolve={handleChallengeResult} onClose={() => setShowChallenge(null)} />)}
             {activeTimeoutTeam && (<TimeoutTimer team={activeTimeoutTeam} onClose={() => setActiveTimeoutTeam(null)} />)}
@@ -583,8 +659,7 @@ export default function VolleyballTracker() {
             </header>
 
             <div className="flex-1 flex overflow-hidden relative">
-
-                {/* HOME SIDEBAR (Dynamic Data) */}
+                {/* HOME SIDEBAR */}
                 <div className="hidden md:flex flex-col w-32 xl:w-64 bg-white border-r border-slate-300 py-2 gap-2 z-20 shadow-xl flex-shrink-0">
                     <LiberoSection team="home" teamColor="orange" liberos={setupData.home.liberos} rotation={state.rotations.home} />
                     <div className="w-full border-t border-slate-100 my-1"></div>
@@ -599,17 +674,7 @@ export default function VolleyballTracker() {
                     </div>
                     <div className="px-2 pb-2 mt-auto flex flex-col gap-2">
                         <div className="flex gap-2">
-                            <TimeoutButton
-                                onClick={() => {
-                                    if (['PRE_SERVE', 'SERVE'].includes(state.matchPhase)) {
-                                        dispatch({ type: 'REQUEST_TIMEOUT', payload: 'home' });
-                                        setActiveTimeoutTeam('home');
-                                    }
-                                }}
-                                used={state.timeoutsUsed.home}
-                                limit={2}
-                                disabled={!['PRE_SERVE', 'SERVE'].includes(state.matchPhase)}
-                            />
+                            <TimeoutButton onClick={() => { if (['PRE_SERVE', 'SERVE'].includes(state.matchPhase)) { dispatch({ type: 'REQUEST_TIMEOUT', payload: 'home' }); setActiveTimeoutTeam('home'); } }} used={state.timeoutsUsed.home} limit={2} disabled={!['PRE_SERVE', 'SERVE'].includes(state.matchPhase)} />
                         </div>
                         <ChallengeButton onClick={() => setShowChallenge('home')} used={state.challengesUsed.home} limit={2} />
                     </div>
@@ -635,7 +700,7 @@ export default function VolleyballTracker() {
                     <div className="h-32 md:h-40 bg-white border-t border-slate-200 p-2 z-40 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] flex-shrink-0"><div className="h-full max-w-7xl mx-auto flex items-center justify-center">{renderControls()}</div></div>
                 </div>
 
-                {/* AWAY SIDEBAR (Dynamic Data) */}
+                {/* AWAY SIDEBAR */}
                 <div className="hidden md:flex flex-col w-32 xl:w-64 bg-white border-l border-slate-300 py-2 gap-2 z-20 shadow-xl flex-shrink-0">
                     <LiberoSection team="away" teamColor="red" liberos={setupData.away.liberos} rotation={state.rotations.away} />
                     <div className="w-full border-t border-slate-100 my-1"></div>
@@ -650,17 +715,7 @@ export default function VolleyballTracker() {
                     </div>
                     <div className="px-2 pb-2 mt-auto flex flex-col gap-2">
                         <div className="flex gap-2">
-                            <TimeoutButton
-                                onClick={() => {
-                                    if (['PRE_SERVE', 'SERVE'].includes(state.matchPhase)) {
-                                        dispatch({ type: 'REQUEST_TIMEOUT', payload: 'away' });
-                                        setActiveTimeoutTeam('away');
-                                    }
-                                }}
-                                used={state.timeoutsUsed.away}
-                                limit={2}
-                                disabled={!['PRE_SERVE', 'SERVE'].includes(state.matchPhase)}
-                            />
+                            <TimeoutButton onClick={() => { if (['PRE_SERVE', 'SERVE'].includes(state.matchPhase)) { dispatch({ type: 'REQUEST_TIMEOUT', payload: 'away' }); setActiveTimeoutTeam('away'); } }} used={state.timeoutsUsed.away} limit={2} disabled={!['PRE_SERVE', 'SERVE'].includes(state.matchPhase)} />
                         </div>
                         <ChallengeButton onClick={() => setShowChallenge('away')} used={state.challengesUsed.away} limit={2} />
                     </div>

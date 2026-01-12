@@ -17,7 +17,7 @@ import ChallengeControl from '../components/ChallengeControl';
 import RefereeControls from '../components/RefereeControls';
 import TimeoutTimer from '../components/TimeoutTimer';
 
-// --- SUB-COMPONENTS (Unchanged) ---
+// --- SUB-COMPONENTS ---
 const PlayerTag = ({ player, isSelected, teamColor, isLibero, isBlocker }) => {
     const baseClass = "relative z-20 w-full py-1 px-2 md:px-3 rounded-lg shadow-sm flex items-center justify-between transition-all duration-200 cursor-pointer select-none border-l-[6px]";
     let bgClass = "bg-white";
@@ -142,7 +142,7 @@ const processRotation = (teamRotation, teamOriginals) => {
     const mover = newRotation.pop();
     newRotation.unshift(mover);
 
-    // 2. CHECK FRONT-LEFT (Position 4, Index 3) for Libero
+    // 2. CHECK FRONT-LEFT (Zone 4, Index 3) for Libero
     const playerAtPos4 = newRotation[3];
 
     if (playerAtPos4 && playerAtPos4.isLibero) {
@@ -239,49 +239,56 @@ const gameReducer = (state, action) => {
         case 'CHALLENGE_RESULT': {
             const { team, success } = action.payload;
             const challenger = team;
+
             if (!success) {
                 const newChallenges = { ...state.challengesUsed };
                 newChallenges[challenger] += 1;
                 return { ...state, challengesUsed: newChallenges, logs: addLog(`CHALLENGE FAILED`, 'danger') };
             }
 
-            if (!state.previousState) return state;
+            // SUCCESSFUL CHALLENGE = OVERTURN VERDICT
+            const winner = challenger;
+            const winnerCode = winner === 'home' ? 'HOME' : 'AWAY';
 
-            const restored = state.previousState;
+            // [FIX FOR 1-1 ISSUE]
+            // We need to check if a point was just awarded (Score increased compared to snapshot).
+            // Even if matchPhase transitioned to 'SERVE', if the score is higher than previousState, it was a post-point challenge.
+            const currentTotalScore = state.score.home + state.score.away;
+            const prevTotalScore = state.previousState ? (state.previousState.score.home + state.previousState.score.away) : 0;
 
-            // [FIX FOR ACE REVERSAL]
-            // If the restored state was SERVE_LANDING with an ACE result,
-            // and the challenge succeeded (meaning ball was OUT),
-            // we must treat this as a Service Error and Sideout to the Challenger.
-            if (restored.matchPhase === 'SERVE_LANDING' && restored.rallyData.serveResult === 'ACE') {
-                const winner = challenger; // Challenger (Receiver) wins point
-                const winnerCode = winner === 'home' ? 'HOME' : 'AWAY';
+            const isPointReversal = state.previousState && (currentTotalScore > prevTotalScore);
 
-                // Process Sideout Rotation for the winner
-                const { newRotation, newOriginals, autoSwapLog, returningPlayer } = processRotation(restored.rotations[winner], restored.liberoOriginals[winner]);
+            // Use previousState (wiping the last point) if it was a reversal, otherwise use current state (stopping mid-rally)
+            let baseState = isPointReversal ? state.previousState : state;
 
-                let newBenches = { ...restored.benches };
-                if (returningPlayer) newBenches[winner] = newBenches[winner].filter(p => p.id !== returningPlayer.id);
+            // 2. CALCULATE NEW OUTCOME (Point to Challenger)
+            const shouldRotate = winner !== baseState.servingTeam;
 
-                let l = [{ id: Date.now(), time: getTime(), text: `CHALLENGE SUCCESS: Ace Overturned (OUT) -> POINT ${winnerCode}`, type: 'success' }, ...restored.logs];
-                if (autoSwapLog) l = [{ id: Date.now() + 1, time: getTime(), text: autoSwapLog.text, type: autoSwapLog.type }, ...l];
+            const { newRotation, newOriginals, autoSwapLog, returningPlayer } = shouldRotate
+                ? processRotation(baseState.rotations[winner], baseState.liberoOriginals[winner])
+                : { newRotation: baseState.rotations[winner], newOriginals: baseState.liberoOriginals[winner], returningPlayer: null };
 
-                return {
-                    ...restored,
-                    score: { ...restored.score, [winner]: restored.score[winner] + 1 },
-                    servingTeam: winner,
-                    rotations: { ...restored.rotations, [winner]: newRotation },
-                    liberoOriginals: { ...restored.liberoOriginals, [winner]: newOriginals },
-                    benches: newBenches,
-                    matchPhase: 'PRE_SERVE', // Go to next serve
-                    logs: l,
-                    rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null, pendingResult: null },
-                    previousState: null // Consume snapshot
-                };
-            }
+            // Handle Bench updates (if libero swap caused a return)
+            let newBenches = { ...baseState.benches };
+            if (returningPlayer) newBenches[winner] = newBenches[winner].filter(p => p.id !== returningPlayer.id);
 
-            // Standard Undo for other states
-            return { ...state.previousState, logs: addLog(`CHALLENGE SUCCESS: State Restored`, 'success') };
+            let l = [{ id: Date.now(), time: getTime(), text: `CHALLENGE SUCCESS: VERDICT OVERTURNED -> POINT ${winnerCode}`, type: 'success' }, ...baseState.logs];
+            if (autoSwapLog) l = [{ id: Date.now() + 1, time: getTime(), text: autoSwapLog.text, type: autoSwapLog.type }, ...l];
+
+            return {
+                ...baseState, // Restore clean slate (0-0 if reversed, or mid-rally state)
+                score: { ...baseState.score, [winner]: baseState.score[winner] + 1 }, // Award point to challenger (0-1)
+                servingTeam: winner,
+                rotations: { ...baseState.rotations, [winner]: newRotation },
+                liberoOriginals: { ...baseState.liberoOriginals, [winner]: newOriginals },
+                benches: newBenches,
+                matchPhase: 'PRE_SERVE', // Force Next Serve
+                logs: l,
+                rallyData: { serveType: null, serveResult: null, blockers: [], setter: null, attacker: null, receiver: null, target: null, pendingResult: null },
+                // Save THIS new state as the restore point
+                previousState: createSnapshot(baseState),
+                challengesUsed: state.challengesUsed
+            };
         }
 
         case 'REQUEST_SUB': return { ...state, matchPhase: 'SUBSTITUTION', actionTeam: action.payload, selectedPlayer: null };

@@ -10,6 +10,13 @@ export const useMatchStore = create(
             isLoading: false,
             error: null,
 
+            // Default Match Rules
+            matchRules: {
+                bestOf: 3,
+                setPoints: 25,
+                tiebreakPoints: 15
+            },
+
             // List of teams for the "Select Team" Wizard
             availableTeams: [],
 
@@ -23,7 +30,6 @@ export const useMatchStore = create(
 
             // 1. Fetch the list of teams from API
             loadAvailableTeams: async () => {
-                // If we already have data, don't re-fetch unless forced (optional optimization)
                 if (get().availableTeams.length > 0) return;
 
                 set({ isLoading: true, error: null });
@@ -67,7 +73,10 @@ export const useMatchStore = create(
                 });
             },
 
-            // 3. Game Logic Actions
+            // 3. Save Match Rules
+            setMatchRules: (rules) => set({ matchRules: rules }),
+
+            // 4. Game Logic Actions
             updateTeamSetup: (side, data) => set(state => ({
                 setupData: { ...state.setupData, [side]: { ...state.setupData[side], ...data } }
             })),
@@ -79,6 +88,7 @@ export const useMatchStore = create(
             resetMatch: () => set({
                 setNumber: 1,
                 liveGameBackup: null,
+                matchRules: { bestOf: 3, setPoints: 25, tiebreakPoints: 15 },
                 setupData: {
                     home: { name: 'HOME', theme: 'orange', bench: [], court: Array(6).fill(null), liberos: [] },
                     away: { name: 'AWAY', theme: 'red', bench: [], court: Array(6).fill(null), liberos: [] }

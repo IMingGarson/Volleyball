@@ -2,32 +2,7 @@ import { ArrowLeftRight, ArrowRight, Check, GripHorizontal, Loader2, RefreshCw, 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMatchStore } from '../store/matchStore';
-
-// --- THEME ENGINE ---
-const THEME_MAP = {
-    orange: {
-        tint: 'text-[#ff7b00]', border: 'border-[#ff7b00]', bgTint: 'bg-[#ff7b00]',
-        softBg: 'bg-orange-50', gradient: 'from-[#ff7b00] to-[#c75c14]',
-        courtLines: 'border-orange-200', refColor: 'bg-orange-800'
-    },
-    red: {
-        tint: 'text-[#d9202a]', border: 'border-[#d9202a]', bgTint: 'bg-[#d9202a]',
-        softBg: 'bg-red-50', gradient: 'from-[#d9202a] to-[#9e212d]',
-        courtLines: 'border-red-200', refColor: 'bg-red-800'
-    },
-    purple: {
-        tint: 'text-[#ac217f]', border: 'border-[#ac217f]', bgTint: 'bg-[#ac217f]',
-        softBg: 'bg-fuchsia-50', gradient: 'from-[#ac217f] to-[#5c575a]',
-        courtLines: 'border-fuchsia-200', refColor: 'bg-[#5c575a]'
-    },
-    teal: {
-        tint: 'text-[#00897b]', border: 'border-[#00897b]', bgTint: 'bg-[#00897b]',
-        softBg: 'bg-teal-50', gradient: 'from-[#79c6c6] to-[#141414]',
-        courtLines: 'border-teal-200', refColor: 'bg-[#343434]'
-    }
-};
-
-// --- SUB-COMPONENTS ---
+import { THEME_MAP } from '../utils/constants';
 
 const PlayerCard = ({ player, onDragStart, theme }) => (
     <div
@@ -116,12 +91,12 @@ const HeadRef = ({ theme }) => (
 
 export default function SetupPage() {
     const navigate = useNavigate();
-    // Destructure actions from store
     const {
         availableTeams,
         loadAvailableTeams,
         setupData,
         setMatchTeams,
+        setMatchRules, // Import the action
         updateTeamSetup,
         setNumber,
         startSet,
@@ -132,13 +107,12 @@ export default function SetupPage() {
     const [step, setStep] = useState(1);
     const [selectedHome, setSelectedHome] = useState(null);
     const [selectedAway, setSelectedAway] = useState(null);
-    const [matchRules, setMatchRules] = useState({
+    const [matchRules, setLocalMatchRules] = useState({
         bestOf: 3,
         setPoints: 25,
         tiebreakPoints: 15
     });
 
-    // Load teams on mount
     useEffect(() => {
         loadAvailableTeams();
     }, []);
@@ -152,8 +126,8 @@ export default function SetupPage() {
             if (selectedHome.id === selectedAway.id) return alert("Home and Away teams must be different.");
             setStep(2);
         } else if (step === 2) {
-            // Commit selections to store logic
             setMatchTeams(selectedHome, selectedAway);
+            setMatchRules(matchRules); // Persist rules to store
             setStep(3);
         }
     };
@@ -167,9 +141,7 @@ export default function SetupPage() {
         }
     };
 
-    // --- LINEUP LOGIC ---
     const activeTeam = setupData[activeTab];
-    // Safety check for activeTeam (in case store hasn't updated yet)
     const assignedLibero = activeTeam?.liberoAssignment || { index: null, player: null };
     const registeredLibero = activeTeam?.registeredLibero || null;
     const theme = (activeTeam?.theme && THEME_MAP[activeTeam.theme]) ? THEME_MAP[activeTeam.theme] : THEME_MAP.orange;
@@ -252,8 +224,6 @@ export default function SetupPage() {
     const backRowIndices = [2, 1, 0];
     const positionLabels = { 3: '4', 4: '3', 5: '2', 2: '5', 1: '6', 0: '1' };
 
-    // --- UI RENDER ---
-
     if (step === 1) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
@@ -267,13 +237,11 @@ export default function SetupPage() {
                     </div>
 
                     <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-12">
-                        {/* HOME SELECTION */}
                         <div>
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="bg-slate-100 p-2 rounded-lg"><Users size={24} className="text-slate-600" /></div>
                                 <span className="font-black text-xl uppercase text-slate-800 tracking-wide">Home Team</span>
                             </div>
-                            {/* ADDED PADDING (p-2) to prevent border clipping */}
                             <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-2">
                                 {availableTeams.map(team => (
                                     <button
@@ -289,13 +257,11 @@ export default function SetupPage() {
                             </div>
                         </div>
 
-                        {/* AWAY SELECTION */}
                         <div>
                             <div className="flex items-center gap-3 mb-6">
                                 <div className="bg-slate-100 p-2 rounded-lg"><Users size={24} className="text-slate-600" /></div>
                                 <span className="font-black text-xl uppercase text-slate-800 tracking-wide">Away Team</span>
                             </div>
-                            {/* ADDED PADDING (p-2) */}
                             <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-2">
                                 {availableTeams.map(team => (
                                     <button
@@ -345,7 +311,7 @@ export default function SetupPage() {
                                 {[3, 5].map(num => (
                                     <button
                                         key={num}
-                                        onClick={() => setMatchRules({ ...matchRules, bestOf: num })}
+                                        onClick={() => setLocalMatchRules({ ...matchRules, bestOf: num })}
                                         className={`p-6 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${matchRules.bestOf === num ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 text-slate-500 hover:border-slate-300'}`}
                                     >
                                         <Trophy size={32} className={matchRules.bestOf === num ? 'text-blue-500' : 'text-slate-300'} />
@@ -362,7 +328,7 @@ export default function SetupPage() {
                                     <input
                                         type="number"
                                         value={matchRules.setPoints}
-                                        onChange={(e) => setMatchRules({ ...matchRules, setPoints: parseInt(e.target.value) })}
+                                        onChange={(e) => setLocalMatchRules({ ...matchRules, setPoints: parseInt(e.target.value) })}
                                         className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-black text-2xl text-center focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">PTS</span>
@@ -374,7 +340,7 @@ export default function SetupPage() {
                                     <input
                                         type="number"
                                         value={matchRules.tiebreakPoints}
-                                        onChange={(e) => setMatchRules({ ...matchRules, tiebreakPoints: parseInt(e.target.value) })}
+                                        onChange={(e) => setLocalMatchRules({ ...matchRules, tiebreakPoints: parseInt(e.target.value) })}
                                         className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-black text-2xl text-center focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">PTS</span>

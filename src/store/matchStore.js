@@ -10,7 +10,10 @@ export const useMatchStore = create(
             isLoading: false,
             error: null,
 
-            // Initial state now supports a 'theme' property
+            // List of teams for the "Select Team" Wizard
+            availableTeams: [],
+
+            // Active Game State
             setupData: {
                 home: { name: 'HOME', theme: 'orange', bench: [], court: Array(6).fill(null), liberos: [] },
                 away: { name: 'AWAY', theme: 'red', bench: [], court: Array(6).fill(null), liberos: [] }
@@ -18,39 +21,53 @@ export const useMatchStore = create(
 
             liveGameBackup: null,
 
-            fetchRosters: async () => {
+            // 1. Fetch the list of teams from API
+            loadAvailableTeams: async () => {
+                // If we already have data, don't re-fetch unless forced (optional optimization)
+                if (get().availableTeams.length > 0) return;
+
                 set({ isLoading: true, error: null });
                 try {
-                    const data = await MatchAPI.getRosterData();
-
-                    const processTeam = (apiTeamData) => {
-                        const bench = [];
-                        const liberos = [];
-                        apiTeamData.roster.forEach(p => {
-                            const playerObj = { ...p, id: uuidv4() };
-                            if (p.isLibero) liberos.push(playerObj);
-                            else bench.push(playerObj);
-                        });
-                        return {
-                            name: apiTeamData.name,
-                            theme: apiTeamData.theme, // CAPTURE THEME
-                            bench,
-                            liberos,
-                            court: Array(6).fill(null)
-                        };
-                    };
-
-                    set({
-                        setupData: { home: processTeam(data.home), away: processTeam(data.away) },
-                        isLoading: false
-                    });
-
-                } catch (error) {
-                    console.error("API Call Failed", error);
-                    set({ isLoading: false, error: "Failed to load match data." });
+                    const teams = await MatchAPI.getAvailableTeams();
+                    set({ availableTeams: teams, isLoading: false });
+                } catch (err) {
+                    console.error("Failed to load teams", err);
+                    set({ isLoading: false, error: "Could not load teams." });
                 }
             },
 
+            // 2. Process selected teams into Active Game State
+            setMatchTeams: (homeTeamRaw, awayTeamRaw) => {
+                const processTeam = (rawTeam) => {
+                    const bench = [];
+                    const liberos = [];
+
+                    rawTeam.roster.forEach(p => {
+                        const playerObj = { ...p, id: uuidv4() }; // Add UUID for game tracking
+                        if (p.isLibero) liberos.push(playerObj);
+                        else bench.push(playerObj);
+                    });
+
+                    return {
+                        name: rawTeam.name,
+                        theme: rawTeam.theme,
+                        bench,
+                        liberos,
+                        court: Array(6).fill(null),
+                        liberoAssignment: { index: null, player: null },
+                        registeredLibero: null
+                    };
+                };
+
+                set({
+                    setupData: {
+                        home: processTeam(homeTeamRaw),
+                        away: processTeam(awayTeamRaw)
+                    }
+                });
+            },
+
+            // 3. Game Logic Actions
             updateTeamSetup: (side, data) => set(state => ({
                 setupData: { ...state.setupData, [side]: { ...state.setupData[side], ...data } }
             })),

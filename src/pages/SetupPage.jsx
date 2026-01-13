@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ArrowRight, GripHorizontal, Loader2, RefreshCw, Shield, Trash2, User, Users } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, Check, GripHorizontal, Loader2, RefreshCw, Settings, Shield, Trash2, Trophy, User, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMatchStore } from '../store/matchStore';
@@ -6,22 +6,29 @@ import { useMatchStore } from '../store/matchStore';
 // --- THEME ENGINE ---
 const THEME_MAP = {
     orange: {
-        name: 'Karasuno',
         tint: 'text-[#ff7b00]', border: 'border-[#ff7b00]', bgTint: 'bg-[#ff7b00]',
-        softBg: 'bg-orange-50', ring: 'ring-[#ff7b00]/50', gradient: 'from-[#ff7b00] to-[#c75c14]',
-        courtLines: 'border-orange-200',
-        refColor: 'bg-orange-800'
+        softBg: 'bg-orange-50', gradient: 'from-[#ff7b00] to-[#c75c14]',
+        courtLines: 'border-orange-200', refColor: 'bg-orange-800'
     },
     red: {
-        name: 'Nekoma',
         tint: 'text-[#d9202a]', border: 'border-[#d9202a]', bgTint: 'bg-[#d9202a]',
-        softBg: 'bg-red-50', ring: 'ring-[#d9202a]/50', gradient: 'from-[#d9202a] to-[#9e212d]',
-        courtLines: 'border-red-200',
-        refColor: 'bg-red-800'
+        softBg: 'bg-red-50', gradient: 'from-[#d9202a] to-[#9e212d]',
+        courtLines: 'border-red-200', refColor: 'bg-red-800'
+    },
+    purple: {
+        tint: 'text-[#ac217f]', border: 'border-[#ac217f]', bgTint: 'bg-[#ac217f]',
+        softBg: 'bg-fuchsia-50', gradient: 'from-[#ac217f] to-[#5c575a]',
+        courtLines: 'border-fuchsia-200', refColor: 'bg-[#5c575a]'
+    },
+    teal: {
+        tint: 'text-[#00897b]', border: 'border-[#00897b]', bgTint: 'bg-[#00897b]',
+        softBg: 'bg-teal-50', gradient: 'from-[#79c6c6] to-[#141414]',
+        courtLines: 'border-teal-200', refColor: 'bg-[#343434]'
     }
 };
 
-// --- COMPONENT: PLAYER CARD ---
+// --- SUB-COMPONENTS ---
+
 const PlayerCard = ({ player, onDragStart, theme }) => (
     <div
         draggable
@@ -40,7 +47,6 @@ const PlayerCard = ({ player, onDragStart, theme }) => (
     </div>
 );
 
-// --- COMPONENT: COURT BOX ---
 const CourtBox = ({ positionLabel, index, player, libero, onDrop, onDragStart, onDragOver, onRemove, onRemoveLibero, theme, className }) => (
     <div
         onDrop={onDrop}
@@ -88,13 +94,10 @@ const CourtBox = ({ positionLabel, index, player, libero, onDrop, onDragStart, o
                     </div>
                 )}
             </div>
-        ) : (
-            null
-        )}
+        ) : null}
     </div>
 );
 
-// --- COMPONENT: HEAD REF ---
 const HeadRef = ({ theme }) => (
     <div className="flex flex-col items-center justify-start pt-8 w-16 flex-shrink-0">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 border-white ${theme.refColor} z-20`}>
@@ -109,29 +112,69 @@ const HeadRef = ({ theme }) => (
     </div>
 );
 
+// --- MAIN SETUP PAGE ---
+
 export default function SetupPage() {
     const navigate = useNavigate();
-    const { setupData, updateTeamSetup, setNumber, startSet, fetchRosters, isLoading, resetMatch } = useMatchStore();
-    const [activeTab, setActiveTab] = useState('home');
+    // Destructure actions from store
+    const {
+        availableTeams,
+        loadAvailableTeams,
+        setupData,
+        setMatchTeams,
+        updateTeamSetup,
+        setNumber,
+        startSet,
+        resetMatch,
+        isLoading
+    } = useMatchStore();
 
-    // 'left' means Home Team starts on the Left of the Ref. 'right' means they start on the Right.
-    const [homeSide, setHomeSide] = useState('left');
+    const [step, setStep] = useState(1);
+    const [selectedHome, setSelectedHome] = useState(null);
+    const [selectedAway, setSelectedAway] = useState(null);
+    const [matchRules, setMatchRules] = useState({
+        bestOf: 3,
+        setPoints: 25,
+        tiebreakPoints: 15
+    });
 
+    // Load teams on mount
     useEffect(() => {
-        if (setupData.home.bench.length === 0 && setupData.home.court.every(p => p === null)) fetchRosters();
+        loadAvailableTeams();
     }, []);
 
-    const activeTeam = setupData[activeTab];
-    const assignedLibero = activeTeam.liberoAssignment || { index: null, player: null };
-    const registeredLibero = activeTeam.registeredLibero || null;
-    const theme = (activeTeam.theme && THEME_MAP[activeTeam.theme]) ? THEME_MAP[activeTeam.theme] : (activeTab === 'home' ? THEME_MAP.orange : THEME_MAP.red);
+    const [activeTab, setActiveTab] = useState('home');
+    const [homeSide, setHomeSide] = useState('left');
 
-    // --- LOGIC: CALCULATE MIRROR STATE ---
-    // If Home starts Left: Home Tab = Standard(False), Away Tab = Mirrored(True)
-    // If Home starts Right: Home Tab = Mirrored(True), Away Tab = Standard(False)
+    const handleNextStep = () => {
+        if (step === 1) {
+            if (!selectedHome || !selectedAway) return alert("Please select both teams.");
+            if (selectedHome.id === selectedAway.id) return alert("Home and Away teams must be different.");
+            setStep(2);
+        } else if (step === 2) {
+            // Commit selections to store logic
+            setMatchTeams(selectedHome, selectedAway);
+            setStep(3);
+        }
+    };
+
+    const handleHardReset = () => {
+        if (window.confirm("Reset match data and go back to team selection?")) {
+            resetMatch();
+            setStep(1);
+            setSelectedHome(null);
+            setSelectedAway(null);
+        }
+    };
+
+    // --- LINEUP LOGIC ---
+    const activeTeam = setupData[activeTab];
+    // Safety check for activeTeam (in case store hasn't updated yet)
+    const assignedLibero = activeTeam?.liberoAssignment || { index: null, player: null };
+    const registeredLibero = activeTeam?.registeredLibero || null;
+    const theme = (activeTeam?.theme && THEME_MAP[activeTeam.theme]) ? THEME_MAP[activeTeam.theme] : THEME_MAP.orange;
     const isMirrored = (activeTab === 'away') !== (homeSide === 'right');
 
-    // --- DRAG LOGIC ---
     const handleDragStart = (e, player, sourceIndex) => {
         e.dataTransfer.setData('dragPayload', JSON.stringify({ player, sourceIndex }));
         e.dataTransfer.effectAllowed = "move";
@@ -148,35 +191,26 @@ export default function SetupPage() {
         let newLiberoAssignment = { ...assignedLibero };
         let newRegisteredLibero = registeredLibero;
 
-        // --- LIBERO ONTO COURT ---
         if (draggedPlayer.isLibero) {
-            // Can only replace back row (Indices 0, 1, 2)
             const isBackRow = [0, 1, 2].includes(targetIndex);
             const targetPlayer = newCourt[targetIndex];
-
             if (!isBackRow) return alert("Liberos can only play in Back Row (Zones 1, 6, 5).");
             if (!targetPlayer) return alert("Place a starting player here first.");
 
-            // Cleanup Source
             newBench = newBench.filter(p => p.id !== draggedPlayer.id);
             if (newRegisteredLibero && newRegisteredLibero.id === draggedPlayer.id) newRegisteredLibero = null;
-            if (newLiberoAssignment.player && newLiberoAssignment.player.id === draggedPlayer.id) { }
-            else if (newLiberoAssignment.player) newBench.push(newLiberoAssignment.player);
+            if (newLiberoAssignment.player) newBench.push(newLiberoAssignment.player);
 
             newLiberoAssignment = { index: targetIndex, player: draggedPlayer };
             updateTeamSetup(activeTab, { bench: newBench, liberoAssignment: newLiberoAssignment, registeredLibero: newRegisteredLibero });
             return;
         }
 
-        // --- STANDARD PLAYER ---
         const playerAtTarget = newCourt[targetIndex];
-
         if (sourceIndex === null) {
             newBench = newBench.filter(p => p.id !== draggedPlayer.id);
             if (playerAtTarget) newBench.push(playerAtTarget);
             newCourt[targetIndex] = draggedPlayer;
-        } else if (sourceIndex === 'LIBERO_SLOT') {
-            // Prevent accidental drag from libero slot if logic allows non-libero there
         } else {
             newCourt[sourceIndex] = null;
             if (newLiberoAssignment.index === sourceIndex) newLiberoAssignment = { index: null, player: null };
@@ -184,22 +218,6 @@ export default function SetupPage() {
             newCourt[targetIndex] = draggedPlayer;
         }
         updateTeamSetup(activeTab, { bench: newBench, court: newCourt, liberoAssignment: newLiberoAssignment });
-    };
-
-    const handleRegisterLibero = (e) => {
-        e.preventDefault();
-        const { player, sourceIndex } = JSON.parse(e.dataTransfer.getData('dragPayload'));
-        if (!player.isLibero) return alert("Only Liberos allowed here.");
-
-        let newBench = [...activeTeam.bench];
-        let newLiberoAssignment = { ...assignedLibero };
-
-        if (sourceIndex === null) newBench = newBench.filter(p => p.id !== player.id);
-        if (sourceIndex === 'LIBERO_ATTACHED') newLiberoAssignment = { index: null, player: null };
-
-        if (registeredLibero) newBench.push(registeredLibero);
-
-        updateTeamSetup(activeTab, { bench: newBench, registeredLibero: player, liberoAssignment: newLiberoAssignment });
     };
 
     const handleRemoveFromCourt = (index) => {
@@ -222,12 +240,6 @@ export default function SetupPage() {
         updateTeamSetup(activeTab, { bench: newBench, liberoAssignment: { index: null, player: null } });
     };
 
-    const handleRemoveRegisteredLibero = () => {
-        if (!registeredLibero) return;
-        const newBench = [...activeTeam.bench, registeredLibero];
-        updateTeamSetup(activeTab, { bench: newBench, registeredLibero: null });
-    }
-
     const validateAndStart = () => {
         const hC = setupData.home.court.filter(Boolean).length;
         const aC = setupData.away.court.filter(Boolean).length;
@@ -236,34 +248,166 @@ export default function SetupPage() {
         navigate('/track');
     };
 
-    const handleHardReset = () => { if (window.confirm("Reset match data?")) { resetMatch(); window.location.reload(); } }
-
-    // --- MAPPING INDICES TO VISUAL GRID (FIXED) ---
-    // The visual grid should ALWAYS render Left-to-Right as:
-    // Front: Zone 4 (Left) -> Zone 3 (Center) -> Zone 2 (Right)
-    // Back:  Zone 5 (Left) -> Zone 6 (Center) -> Zone 1 (Right)
-    // We do NOT swap these based on 'isMirrored'.
-
-    const frontRowIndices = [3, 4, 5]; // Indices: 3=Zone4, 4=Zone3, 5=Zone2
-    const backRowIndices = [2, 1, 0];  // Indices: 2=Zone5, 1=Zone6, 0=Zone1
-
+    const frontRowIndices = [3, 4, 5];
+    const backRowIndices = [2, 1, 0];
     const positionLabels = { 3: '4', 4: '3', 5: '2', 2: '5', 1: '6', 0: '1' };
+
+    // --- UI RENDER ---
+
+    if (step === 1) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+                <div className="max-w-5xl w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                    <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl font-black uppercase tracking-tighter">Match Setup</h1>
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mt-1">Step 1: Select Teams</p>
+                        </div>
+                        {isLoading && <Loader2 className="animate-spin text-blue-400" />}
+                    </div>
+
+                    <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-12">
+                        {/* HOME SELECTION */}
+                        <div>
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="bg-slate-100 p-2 rounded-lg"><Users size={24} className="text-slate-600" /></div>
+                                <span className="font-black text-xl uppercase text-slate-800 tracking-wide">Home Team</span>
+                            </div>
+                            {/* ADDED PADDING (p-2) to prevent border clipping */}
+                            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-2">
+                                {availableTeams.map(team => (
+                                    <button
+                                        key={team.id}
+                                        onClick={() => setSelectedHome(team)}
+                                        disabled={selectedAway?.id === team.id}
+                                        className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${selectedHome?.id === team.id ? `border-${THEME_MAP[team.theme].border.split('-')[1]} bg-${team.theme}-50 ring-2 ring-${team.theme}-200` : 'border-slate-100 hover:border-slate-300 disabled:opacity-30 disabled:cursor-not-allowed'}`}
+                                    >
+                                        <span className={`font-black uppercase ${selectedHome?.id === team.id ? THEME_MAP[team.theme].tint : 'text-slate-600'}`}>{team.name}</span>
+                                        {selectedHome?.id === team.id && <Check size={20} className={THEME_MAP[team.theme].tint} />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* AWAY SELECTION */}
+                        <div>
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="bg-slate-100 p-2 rounded-lg"><Users size={24} className="text-slate-600" /></div>
+                                <span className="font-black text-xl uppercase text-slate-800 tracking-wide">Away Team</span>
+                            </div>
+                            {/* ADDED PADDING (p-2) */}
+                            <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar p-2">
+                                {availableTeams.map(team => (
+                                    <button
+                                        key={team.id}
+                                        onClick={() => setSelectedAway(team)}
+                                        disabled={selectedHome?.id === team.id}
+                                        className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${selectedAway?.id === team.id ? `border-${THEME_MAP[team.theme].border.split('-')[1]} bg-${team.theme}-50 ring-2 ring-${team.theme}-200` : 'border-slate-100 hover:border-slate-300 disabled:opacity-30 disabled:cursor-not-allowed'}`}
+                                    >
+                                        <span className={`font-black uppercase ${selectedAway?.id === team.id ? THEME_MAP[team.theme].tint : 'text-slate-600'}`}>{team.name}</span>
+                                        {selectedAway?.id === team.id && <Check size={20} className={THEME_MAP[team.theme].tint} />}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-8 border-t border-slate-100 flex justify-end">
+                        <button onClick={handleNextStep} disabled={!selectedHome || !selectedAway} className="bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-xl font-bold uppercase tracking-widest flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                            Next Step <ArrowRight size={20} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (step === 2) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+                <div className="max-w-2xl w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                    <div className="bg-slate-900 p-8 text-white flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl font-black uppercase tracking-tighter">Match Rules</h1>
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mt-1">Step 2: Configuration</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <div className="w-3 h-3 rounded-full bg-slate-700"></div>
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <div className="w-3 h-3 rounded-full bg-slate-700"></div>
+                        </div>
+                    </div>
+
+                    <div className="p-10 space-y-8">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Match Format</label>
+                            <div className="grid grid-cols-2 gap-4">
+                                {[3, 5].map(num => (
+                                    <button
+                                        key={num}
+                                        onClick={() => setMatchRules({ ...matchRules, bestOf: num })}
+                                        className={`p-6 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${matchRules.bestOf === num ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-100 text-slate-500 hover:border-slate-300'}`}
+                                    >
+                                        <Trophy size={32} className={matchRules.bestOf === num ? 'text-blue-500' : 'text-slate-300'} />
+                                        <span className="font-black text-lg">BEST OF {num}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Points per Set</label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        value={matchRules.setPoints}
+                                        onChange={(e) => setMatchRules({ ...matchRules, setPoints: parseInt(e.target.value) })}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-black text-2xl text-center focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">PTS</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Tiebreak Points</label>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        value={matchRules.tiebreakPoints}
+                                        onChange={(e) => setMatchRules({ ...matchRules, tiebreakPoints: parseInt(e.target.value) })}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-200 rounded-xl font-black text-2xl text-center focus:outline-none focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">PTS</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-8 border-t border-slate-100 flex justify-between">
+                        <button onClick={() => setStep(1)} className="text-slate-400 font-bold uppercase text-xs hover:text-slate-600 transition-colors">Back</button>
+                        <button onClick={handleNextStep} className="bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-xl font-bold uppercase tracking-widest flex items-center gap-3 transition-all">
+                            Confirm & Setup Lineup <Check size={20} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#F5F5F7] font-sans text-gray-900 flex flex-col">
             <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-gray-200 px-6 py-4 flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-to-br ${theme.gradient} text-white shadow-sm`}><Users size={20} /></div>
-                    <div><h1 className="text-lg font-bold text-gray-900 leading-tight">Set {setNumber} Setup</h1><span className="text-xs font-medium text-gray-500">Configure Lineups</span></div>
+                    <div><h1 className="text-lg font-bold text-gray-900 leading-tight">Set {setNumber} Lineup</h1><span className="text-xs font-medium text-gray-500">Configure Lineups</span></div>
                 </div>
                 <div className="flex gap-3 items-center">
-                    {isLoading && <Loader2 size={18} className="text-gray-400 animate-spin" />}
+                    <button onClick={() => { if (window.confirm('Re-select teams?')) { resetMatch(); setStep(1); } }} className="p-2 text-gray-400 hover:text-gray-600 transition-colors" title="Change Teams"><Settings size={18} /></button>
                     <button onClick={handleHardReset} className="p-2 text-gray-400 hover:text-gray-600 transition-colors"><RefreshCw size={18} /></button>
                     <button onClick={validateAndStart} className="bg-gray-900 hover:bg-black text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-lg flex items-center gap-2 transition-all active:scale-95">Start Match <ArrowRight size={16} /></button>
                 </div>
             </header>
 
-            {/* TEAM TABS + SIDE SWAP */}
             <div className="flex justify-center items-center pt-8 pb-4 gap-4">
                 <div className="bg-gray-200/50 p-1 rounded-full flex relative">
                     {['home', 'away'].map(side => {
@@ -273,80 +417,36 @@ export default function SetupPage() {
                         );
                     })}
                 </div>
-
-                {/* SIDE SWAP BUTTON */}
-                <button
-                    onClick={() => setHomeSide(prev => prev === 'left' ? 'right' : 'left')}
-                    className="p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-indigo-600 border border-gray-200 transition-colors"
-                    title="Swap Court Sides (Moves Ref)"
-                >
-                    <ArrowLeftRight size={20} />
-                </button>
+                <button onClick={() => setHomeSide(prev => prev === 'left' ? 'right' : 'left')} className="p-2 bg-white rounded-full shadow-sm text-gray-400 hover:text-indigo-600 border border-gray-200 transition-colors" title="Swap Court Sides"><ArrowLeftRight size={20} /></button>
             </div>
 
             <div className="flex-1 p-6 md:p-8 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-
-                {/* LEFT: ROSTER */}
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col h-[800px]">
                     <div className="flex justify-between items-center mb-6 px-1">
                         <h3 className="text-xl font-bold text-gray-900">Roster</h3>
-                        <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{activeTeam.bench.length} Avail</span>
+                        <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-md">{activeTeam?.bench.length || 0} Avail</span>
                     </div>
                     <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-                        {activeTeam.bench.map(p => <PlayerCard key={p.id} player={p} onDragStart={handleDragStart} theme={theme} />)}
-                        {activeTeam.liberos.map(p => <PlayerCard key={p.id} player={p} onDragStart={handleDragStart} theme={theme} />)}
+                        {activeTeam?.bench.map(p => <PlayerCard key={p.id} player={p} onDragStart={handleDragStart} theme={theme} />)}
+                        {activeTeam?.liberos.map(p => <PlayerCard key={p.id} player={p} onDragStart={handleDragStart} theme={theme} />)}
                     </div>
                 </div>
 
-                {/* RIGHT: COURT */}
                 <div className="lg:col-span-3 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col h-[800px] relative">
-
-                    {/* COURT CONTAINER */}
-                    {/* Keeps Ref movement logic (flex-row vs flex-row-reverse) */}
                     <div className={`flex-1 flex gap-4 ${isMirrored ? 'flex-row-reverse' : 'flex-row'}`}>
-
-                        {/* 1. HEAD REF COLUMN */}
                         <HeadRef theme={theme} />
-
-                        {/* 2. COURT GRID COLUMN */}
                         <div className={`flex-1 relative rounded-lg border-4 ${theme.courtLines} bg-gray-50/30 p-2 flex flex-col`}>
-
-                            {/* FRONT ROW (33%) */}
-                            {/* Always Zones 4-3-2 */}
                             <div className="grid grid-cols-3 gap-4 h-[33%] mb-4 border-b-4 border-dashed border-red-200/50 relative">
                                 {frontRowIndices.map(idx => (
-                                    <CourtBox
-                                        key={idx} index={idx} positionLabel={positionLabels[idx]}
-                                        player={activeTeam.court[idx]}
-                                        libero={null}
-                                        onDrop={(e) => handleDropCourt(e, idx)}
-                                        onDragStart={handleDragStart}
-                                        onDragOver={e => e.preventDefault()}
-                                        onRemove={() => handleRemoveFromCourt(idx)}
-                                        onRemoveLibero={() => { }}
-                                        theme={theme}
-                                    />
+                                    <CourtBox key={idx} index={idx} positionLabel={positionLabels[idx]} player={activeTeam?.court[idx]} libero={null} onDrop={(e) => handleDropCourt(e, idx)} onDragStart={handleDragStart} onDragOver={e => e.preventDefault()} onRemove={() => handleRemoveFromCourt(idx)} onRemoveLibero={() => { }} theme={theme} />
                                 ))}
                             </div>
-
-                            {/* BACK ROW (66%) */}
-                            {/* Always Zones 5-6-1 */}
                             <div className="grid grid-cols-3 gap-4 h-[66%] relative">
                                 {backRowIndices.map(idx => {
                                     const isLiberoHere = assignedLibero.index === idx;
                                     return (
                                         <div key={idx} className="relative w-full h-full">
-                                            <CourtBox
-                                                index={idx} positionLabel={positionLabels[idx]}
-                                                player={activeTeam.court[idx]}
-                                                libero={isLiberoHere ? assignedLibero.player : null}
-                                                onDrop={(e) => handleDropCourt(e, idx)}
-                                                onDragStart={handleDragStart}
-                                                onDragOver={e => e.preventDefault()}
-                                                onRemove={() => handleRemoveFromCourt(idx)}
-                                                onRemoveLibero={handleRemoveLibero}
-                                                theme={theme}
-                                            />
+                                            <CourtBox index={idx} positionLabel={positionLabels[idx]} player={activeTeam?.court[idx]} libero={isLiberoHere ? assignedLibero.player : null} onDrop={(e) => handleDropCourt(e, idx)} onDragStart={handleDragStart} onDragOver={e => e.preventDefault()} onRemove={() => handleRemoveFromCourt(idx)} onRemoveLibero={handleRemoveLibero} theme={theme} />
                                         </div>
                                     );
                                 })}

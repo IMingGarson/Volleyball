@@ -1,10 +1,19 @@
-// src/components/volleyball/CourtDisplay.jsx
+import { useMatchStore } from '../../store/matchStore';
+import { THEME_MAP } from '../../utils/constants';
 import CourtZone from './CourtZone';
 
 export default function CourtDisplay({ side, rotation, matchPhase, possession, selectedPlayer, rallyData, actionTeam, onZoneClick, onPlayerClick }) {
+    // 1. Access store for dynamic data
+    const { setupData } = useMatchStore();
+
     const isLeft = side === 'left';
     const teamName = isLeft ? 'home' : 'away';
-    const teamColor = isLeft ? 'orange' : 'red';
+
+    // 2. Resolve Dynamic Theme
+    const teamConfig = setupData[teamName];
+    const themeKey = teamConfig?.theme || (isLeft ? 'orange' : 'red');
+    const theme = THEME_MAP[themeKey] || THEME_MAP.orange;
+
     let isClickable = false;
     let highlight = false;
     let isLocked = false;
@@ -40,7 +49,7 @@ export default function CourtDisplay({ side, rotation, matchPhase, possession, s
                         <CourtZone
                             player={p}
                             zoneNumber={z}
-                            teamColor={teamColor}
+                            theme={theme} // <--- Pass full theme object
                             isSelected={selectedPlayer?.id === p?.id}
                             onClick={(matchPhase === 'LANDING' || matchPhase === 'SERVE_LANDING' || matchPhase === 'DIG_DECISION') ? () => onZoneClick(z, side) : onPlayerClick}
                             isLibero={p?.isLibero}
@@ -55,7 +64,10 @@ export default function CourtDisplay({ side, rotation, matchPhase, possession, s
         </div>
     );
 
+    // Styled divider line using theme colors
+    const dividerClass = `w-1 h-full relative z-10 opacity-20 ${theme.bgTint}`;
+
     return isLeft
-        ? (<div className="flex w-full h-full"><div className="flex-[2] h-full"><CardRow zones={[5, 6, 1]} /></div><div className="w-1 bg-[#1f222b]/10 h-full relative z-10"></div><div className="flex-1 pl-4 h-full"><CardRow zones={[4, 3, 2]} /></div></div>)
-        : (<div className="flex w-full h-full"><div className="flex-1 pr-4 h-full"><CardRow zones={[2, 3, 4]} /></div><div className="w-1 bg-[#2c2429]/10 h-full relative z-10"></div><div className="flex-[2] h-full"><CardRow zones={[1, 6, 5]} /></div></div>);
+        ? (<div className="flex w-full h-full"><div className="flex-[2] h-full"><CardRow zones={[5, 6, 1]} /></div><div className={dividerClass}></div><div className="flex-1 pl-4 h-full"><CardRow zones={[4, 3, 2]} /></div></div>)
+        : (<div className="flex w-full h-full"><div className="flex-1 pr-4 h-full"><CardRow zones={[2, 3, 4]} /></div><div className={dividerClass}></div><div className="flex-[2] h-full"><CardRow zones={[1, 6, 5]} /></div></div>);
 }

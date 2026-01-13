@@ -1,5 +1,15 @@
 // src/utils/constants.js
 
+export const FALLBACK_THEME = {
+    hex: '#64748b',
+    tint: 'text-slate-600',
+    border: 'border-slate-300',
+    bgTint: 'bg-slate-600',
+    softBg: 'bg-slate-50',
+    courtLines: 'border-slate-200',
+    refColor: 'bg-slate-700'
+};
+
 export const THEME_MAP = {
     orange: {
         hex: '#ff7b00', // Added for dynamic inline styles

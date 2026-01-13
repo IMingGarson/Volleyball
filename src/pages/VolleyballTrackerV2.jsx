@@ -20,7 +20,6 @@ export default function VolleyballTracker() {
     const navigate = useNavigate();
     const { setNumber, completeSet } = useMatchStore();
     const { state, actions, setupData } = useVolleyballGame();
-
     // Local UI State (Overlays)
     const [showReferee, setShowReferee] = useState(false);
     const [showChallengeTeam, setShowChallengeTeam] = useState(null);

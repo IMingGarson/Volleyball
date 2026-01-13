@@ -1,7 +1,10 @@
 import { Play, Timer } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useMatchStore } from '../../store/matchStore';
+import { THEME_MAP } from '../../utils/constants';
 
 const TimeoutTimer = ({ team, onClose }) => {
+    const { setupData } = useMatchStore();
     const [timeLeft, setTimeLeft] = useState(30); // FIVB Standard: 30 Seconds
 
     useEffect(() => {
@@ -19,22 +22,31 @@ const TimeoutTimer = ({ team, onClose }) => {
     // Format time as 00:30
     const formattedTime = `00:${timeLeft.toString().padStart(2, '0')}`;
 
-    const isHome = team === 'home';
-    const teamName = isHome ? 'KARASUNO' : 'NEKOMA';
-    const borderColor = isHome ? 'border-orange-500' : 'border-red-500';
-    const textColor = isHome ? 'text-orange-500' : 'text-red-500';
-    const bgGradient = isHome ? 'from-orange-500/10' : 'from-red-500/10';
+    // 1. Resolve Data & Theme
+    const teamData = setupData[team];
+    const teamName = teamData?.name || (team === 'home' ? 'HOME' : 'AWAY');
+    const themeKey = teamData?.theme || (team === 'home' ? 'orange' : 'red');
+    const theme = THEME_MAP[themeKey] || THEME_MAP.orange;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-200">
-            <div className={`bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl border-2 ${borderColor} overflow-hidden flex flex-col relative`}>
+            <div
+                className="bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl border-2 overflow-hidden flex flex-col relative transition-colors duration-300"
+                style={{ borderColor: theme.hex }}
+            >
 
-                {/* Header */}
-                <div className={`p-4 bg-gradient-to-b ${bgGradient} to-transparent text-center border-b border-white/10`}>
-                    <div className={`text-xs font-black uppercase tracking-[0.2em] ${textColor} mb-1`}>
+                {/* Header with Dynamic Gradient */}
+                <div
+                    className="p-4 text-center border-b border-white/10"
+                    style={{ background: `linear-gradient(to bottom, ${theme.hex}26, transparent)` }} // 26 = ~15% opacity hex
+                >
+                    <div
+                        className="text-xs font-black uppercase tracking-[0.2em] mb-1"
+                        style={{ color: theme.hex }}
+                    >
                         Timeout Requested By
                     </div>
-                    <h2 className="text-white text-2xl font-black italic tracking-tighter uppercase">
+                    <h2 className="text-white text-2xl font-black italic tracking-tighter uppercase shadow-black drop-shadow-md">
                         {teamName}
                     </h2>
                 </div>
@@ -42,10 +54,13 @@ const TimeoutTimer = ({ team, onClose }) => {
                 {/* Timer Body */}
                 <div className="p-8 flex flex-col items-center justify-center">
                     <div className="relative">
-                        {/* Ping Animation Effect */}
-                        <div className={`absolute inset-0 rounded-full ${isHome ? 'bg-orange-500' : 'bg-red-500'} blur-xl opacity-20 animate-pulse`}></div>
+                        {/* Dynamic Ping Animation Effect */}
+                        <div
+                            className="absolute inset-0 rounded-full blur-xl opacity-20 animate-pulse"
+                            style={{ backgroundColor: theme.hex }}
+                        ></div>
 
-                        <div className="relative flex items-center justify-center gap-3 text-white text-6xl font-mono font-black tracking-widest tabular-nums">
+                        <div className="relative flex items-center justify-center gap-3 text-white text-6xl font-mono font-black tracking-widest tabular-nums drop-shadow-lg">
                             <Timer size={48} className="text-slate-500" />
                             {formattedTime}
                         </div>

@@ -1,12 +1,21 @@
 import { ArrowLeftRight, CheckCircle, MonitorPlay, X } from 'lucide-react';
 import { useState } from 'react';
 import { CHALLENGE_CATEGORIES } from '../../reducers/fivbRefereeReducer';
+import { useMatchStore } from '../../store/matchStore';
+import { THEME_MAP } from '../../utils/constants';
 
 const ChallengeControl = ({ team, onClose, onResolve }) => {
+    const { setupData } = useMatchStore();
     const [selectedCategory, setSelectedCategory] = useState(null);
 
-    const teamName = team === 'home' ? 'KARASUNO' : 'NEKOMA';
-    const bgClass = team === 'home' ? 'bg-orange-600' : 'bg-red-600';
+    // 1. Resolve Team Name and Theme
+    const teamData = setupData[team]; // 'home' or 'away'
+    const teamName = teamData?.name || (team === 'home' ? 'HOME' : 'AWAY');
+
+    // 2. Resolve Theme Colors
+    // If teamData.theme exists, look it up in map. Otherwise fallback to orange(home)/red(away)
+    const themeKey = teamData?.theme || (team === 'home' ? 'orange' : 'red');
+    const theme = THEME_MAP[themeKey] || THEME_MAP.orange;
 
     const handleResolve = (success) => {
         if (!selectedCategory) return;
@@ -14,17 +23,20 @@ const ChallengeControl = ({ team, onClose, onResolve }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent p-4 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in zoom-in-95 duration-200">
             <div className="bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-slate-700">
 
-                {/* Header */}
-                <div className={`p-5 text-white flex items-center gap-4 ${bgClass}`}>
+                {/* Header with Dynamic Colors */}
+                <div
+                    className="p-5 text-white flex items-center gap-4 shadow-lg transition-colors duration-300"
+                    style={{ backgroundColor: theme.hex }}
+                >
                     <div className="bg-white/20 p-2 rounded-lg"><MonitorPlay size={32} /></div>
                     <div>
                         <h2 className="font-black text-2xl uppercase tracking-tighter leading-none">{teamName} CHALLENGE</h2>
                         <div className="text-white/80 font-bold text-xs uppercase tracking-widest mt-1">Video Verification</div>
                     </div>
-                    <button onClick={onClose} className="ml-auto p-2 hover:bg-white/20 rounded-full"><X size={24} /></button>
+                    <button onClick={onClose} className="ml-auto p-2 hover:bg-white/20 rounded-full transition-colors"><X size={24} /></button>
                 </div>
 
                 <div className="p-6 bg-slate-800">
@@ -40,7 +52,7 @@ const ChallengeControl = ({ team, onClose, onResolve }) => {
                                     className="w-full text-left p-4 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold uppercase text-sm transition-all border border-slate-600 hover:border-white/50 flex justify-between items-center group"
                                 >
                                     {cat.label}
-                                    <ArrowLeftRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <ArrowLeftRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
                                 </button>
                             ))}
                         </div>
@@ -48,13 +60,13 @@ const ChallengeControl = ({ team, onClose, onResolve }) => {
 
                         /* Step 2: Resolution */
                         <div className="animate-in slide-in-from-right-8 duration-200">
-                            <button onClick={() => setSelectedCategory(null)} className="text-slate-400 text-xs font-bold uppercase hover:text-white mb-4 flex items-center gap-1">
+                            <button onClick={() => setSelectedCategory(null)} className="text-slate-400 text-xs font-bold uppercase hover:text-white mb-4 flex items-center gap-1 transition-colors">
                                 &larr; Back to Categories
                             </button>
 
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-600 mb-6 text-center">
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-600 mb-6 text-center shadow-inner">
                                 <div className="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Reviewing</div>
-                                <div className="text-white text-xl font-black uppercase mt-1">{selectedCategory.label}</div>
+                                <div className="text-white text-xl font-black uppercase mt-1 tracking-tight">{selectedCategory.label}</div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

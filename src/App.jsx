@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import SetupPage from './pages/SetupPage';
-import VolleyballTracker from './pages/VolleyballTracker';
+// import VolleyballTracker from './pages/VolleyballTracker';
+import VolleyballTracker from './pages/VolleyballTrackerV2';
 
 function App() {
   return (

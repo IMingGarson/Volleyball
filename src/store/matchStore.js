@@ -10,6 +10,8 @@ export const useMatchStore = create(
             isLoading: false,
             error: null,
 
+            setsWon: { home: 0, away: 0 },
+
             // Default Match Rules
             matchRules: {
                 bestOf: 3,
@@ -83,11 +85,19 @@ export const useMatchStore = create(
 
             startSet: () => set({ liveGameBackup: null }),
             saveLiveState: (gameState) => set({ liveGameBackup: gameState }),
-            completeSet: (winner) => set(state => ({ setNumber: state.setNumber + 1, liveGameBackup: null })),
+            completeSet: (winner) => set(state => {
+                const newSetsWon = { ...state.setsWon, [winner]: state.setsWon[winner] + 1 };
+                return {
+                    setNumber: state.setNumber + 1,
+                    setsWon: newSetsWon,
+                    liveGameBackup: null
+                };
+            }),
 
             resetMatch: () => set({
                 setNumber: 1,
                 liveGameBackup: null,
+                setsWon: { home: 0, away: 0 },
                 matchRules: { bestOf: 3, setPoints: 25, tiebreakPoints: 15 },
                 setupData: {
                     home: { name: 'HOME', theme: 'orange', bench: [], court: Array(6).fill(null), liberos: [] },

@@ -15,33 +15,98 @@ import MatchHeader from '../components/volleyball/MatchHeader';
 import ChallengeControl from '../components/overlays/ChallengeControl';
 import RefereeControls from '../components/overlays/RefereeControls';
 import TimeoutTimer from '../components/overlays/TimeoutTimer';
+import WinnerOverlay from '../components/overlays/WinnerOverlay';
 
 export default function VolleyballTracker() {
     const navigate = useNavigate();
-    const { setNumber, completeSet } = useMatchStore();
-    const { state, actions, setupData } = useVolleyballGame();
-    // Local UI State (Overlays)
+
+    // Store Data
+    const { setNumber, completeSet, matchRules, setsWon, setupData, resetMatch } = useMatchStore();
+    const { state, actions } = useVolleyballGame();
+
+    // UI State
     const [showReferee, setShowReferee] = useState(false);
     const [showChallengeTeam, setShowChallengeTeam] = useState(null);
     const [isLogOpen, setIsLogOpen] = useState(false);
     const [activeTimeoutTeam, setActiveTimeoutTeam] = useState(null);
 
-    // End Set Logic
+    // Winner State
+    const [setWinner, setSetWinner] = useState(null);
+    const [isMatchOver, setIsMatchOver] = useState(false);
+
+    // --- GAME END LOGIC ---
     useEffect(() => {
         const { home, away } = state.score;
-        const target = setNumber === 5 ? 15 : 25;
-        if ((home >= target || away >= target) && Math.abs(home - away) >= 2) {
-            setTimeout(() => {
-                const winner = home > away ? 'home' : 'away';
-                if (window.confirm(`Set Finished! Winner: ${winner.toUpperCase()}`)) {
-                    completeSet(winner);
-                    navigate('/setup');
-                }
-            }, 500);
-        }
-    }, [state.score, setNumber, completeSet, navigate]);
+        const { bestOf, setPoints, tiebreakPoints } = matchRules;
 
-    // Handlers to bridge UI state with Game Actions
+        // --- [FIX] UPDATED TIEBREAK LOGIC ---
+        // 1. Is this the final possible set?
+        const isFinalSet = setNumber === bestOf;
+
+        // 2. It is only a "Short Set" (Tiebreak to 15) if it is the final set AND the match is multi-set.
+        // If BestOf is 1, we play a full set (25).
+        const isTiebreak = isFinalSet && bestOf > 1;
+
+        const target = isTiebreak ? tiebreakPoints : setPoints;
+        // 3. Check Win Condition (Target reached AND +2 lead)
+        if (home >= target || away >= target) {
+            if (Math.abs(home - away) < 2) {
+                return;
+            }
+            // Avoid duplicate triggers
+            if (setWinner) return;
+
+            const winner = home > away ? 'home' : 'away';
+
+            // 4. Check Match Over Condition
+            const setsToWin = Math.ceil(bestOf / 2);
+            // We use setsWon[winner] from store (previous sets) + 1 (this current set)
+            const currentWins = (setsWon[winner] || 0) + 1;
+            const matchFinished = currentWins >= setsToWin;
+
+            setSetWinner(winner);
+            setIsMatchOver(matchFinished);
+        }
+    }, [state.score, setNumber, matchRules, setsWon, setWinner]);
+
+
+    // --- SAVE & NAVIGATE HANDLER ---
+    const handleSaveAndContinue = () => {
+        if (!setWinner) return;
+
+        // 1. Prepare Data Packet
+        const setRecord = {
+            id: Date.now(),
+            matchDate: new Date().toISOString(),
+            setNumber: setNumber,
+            winner: setWinner,
+            score: state.score,
+            duration: '00:00',
+            logs: state.logs,
+            lineups: {
+                home: setupData.home.court,
+                away: setupData.away.court
+            },
+            matchId: `${setupData.home.name}_vs_${setupData.away.name}`
+        };
+
+        // 2. Save to LocalStorage
+        const history = JSON.parse(localStorage.getItem('volleyball_match_history') || '[]');
+        history.push(setRecord);
+        localStorage.setItem('volleyball_match_history', JSON.stringify(history));
+
+        // 3. Update Store / Navigation
+        if (!isMatchOver) {
+            completeSet(setWinner);
+            // Go to Setup Page Step 3 (Lineup)
+            navigate('/setup', { state: { jumpToStep: 3 } });
+        } else {
+            // Match Over -> Reset
+            resetMatch();
+            navigate('/setup');
+        }
+    };
+
     const onTimeoutRequest = (team) => {
         actions.requestTimeout(team);
         setActiveTimeoutTeam(team);
@@ -54,7 +119,17 @@ export default function VolleyballTracker() {
 
     return (
         <div className="w-full h-screen bg-slate-100 flex flex-col font-sans overflow-hidden text-slate-800">
+
             {/* --- OVERLAYS --- */}
+            {setWinner && (
+                <WinnerOverlay
+                    winner={setWinner}
+                    score={state.score}
+                    onSave={handleSaveAndContinue}
+                    isMatchPoint={isMatchOver}
+                />
+            )}
+
             {showReferee && <RefereeControls onPointAwarded={(w, r) => { actions.handleReferee(w, r); setShowReferee(false); }} onClose={() => setShowReferee(false)} />}
             {showChallengeTeam && <ChallengeControl team={showChallengeTeam} onResolve={onChallengeResolve} onClose={() => setShowChallengeTeam(null)} />}
             {activeTimeoutTeam && <TimeoutTimer team={activeTimeoutTeam} onClose={() => setActiveTimeoutTeam(null)} />}
@@ -92,7 +167,6 @@ export default function VolleyballTracker() {
                                         rallyData={state.rallyData}
                                         actionTeam={state.actionTeam}
                                         onPlayerClick={actions.selectPlayer}
-                                        // FIX: Explicitly pass 'home' so the reducer finds state.rotations['home']
                                         onZoneClick={(zone) => actions.selectZone(zone, 'home')}
                                     />
                                 </div>
@@ -122,7 +196,6 @@ export default function VolleyballTracker() {
                                         rallyData={state.rallyData}
                                         actionTeam={state.actionTeam}
                                         onPlayerClick={actions.selectPlayer}
-                                        // FIX: Explicitly pass 'away' so the reducer finds state.rotations['away']
                                         onZoneClick={(zone) => actions.selectZone(zone, 'away')}
                                     />
                                 </div>

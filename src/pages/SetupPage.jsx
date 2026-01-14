@@ -1,6 +1,6 @@
 import { ArrowLeftRight, ArrowRight, Check, GripHorizontal, Loader2, RefreshCw, Settings, Shield, Trash2, Trophy, User, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useMatchStore } from '../store/matchStore';
 import { THEME_MAP } from '../utils/constants';
 
@@ -90,6 +90,7 @@ const HeadRef = ({ theme }) => (
 // --- MAIN SETUP PAGE ---
 
 export default function SetupPage() {
+    const location = useLocation();
     const navigate = useNavigate();
     const {
         availableTeams,
@@ -104,7 +105,7 @@ export default function SetupPage() {
         isLoading
     } = useMatchStore();
 
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(location.state?.jumpToStep || 1);
     const [selectedHome, setSelectedHome] = useState(null);
     const [selectedAway, setSelectedAway] = useState(null);
     const [matchRules, setLocalMatchRules] = useState({

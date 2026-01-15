@@ -96,10 +96,10 @@ const RefereeControls = ({ onPointAwarded, onClose }) => {
                             ) : (
                                 <div>
                                     <h2 className="text-4xl font-black uppercase tracking-tight text-slate-800">
-                                        Referee Call
+                                        Referee Call Panel
                                     </h2>
                                     <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">
-                                        Select Infraction
+                                        Select Calls
                                     </p>
                                 </div>
                             )}
@@ -233,31 +233,16 @@ const RefereeControls = ({ onPointAwarded, onClose }) => {
 
                 {/* --- FOOTER (DYNAMIC ACTIONS) --- */}
                 <div className="bg-white p-6 border-t border-slate-100 flex justify-center z-20 transition-all duration-300">
-                    {isConfirming ? (
-                        <div className="w-full max-w-2xl flex items-center gap-4 animate-in slide-in-from-bottom-2 fade-in">
-                            <button
-                                onClick={() => dispatch({ type: REF_ACTIONS.CANCEL })}
-                                className="flex-1 py-4 rounded-xl border-2 border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-all font-black uppercase text-sm"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={confirmCall}
-                                className="flex-[2] py-4 rounded-xl text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all font-black uppercase text-lg flex items-center justify-center gap-3"
-                                style={{ backgroundColor: getConfirmButtonColor() }}
-                            >
-                                <CheckCircle size={24} /> Confirm Call
-                            </button>
-                        </div>
-                    ) : (
+                    <div className="w-md max-w-2xl flex items-center gap-4 animate-in slide-in-from-bottom-2 fade-in">
                         <button
-                            onClick={() => handleFault('REPLAY', 'NO ONE')}
-                            className="w-full max-w-sm py-4 rounded-xl border-2 border-slate-100 text-slate-900 hover:text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-all font-black tracking-widest flex items-center justify-center gap-3 uppercase text-xs group"
+                            onClick={!isConfirming ? undefined : confirmCall}
+                            disabled={!isConfirming}
+                            className="flex-[2] py-4 rounded-xl text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all font-black uppercase text-lg flex items-center justify-center gap-3"
+                            style={{ backgroundColor: getConfirmButtonColor() }}
                         >
-                            <RefreshCcw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
-                            Replay Point
+                            <CheckCircle size={24} /> Confirm Call
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>

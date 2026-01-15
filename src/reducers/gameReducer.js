@@ -13,21 +13,29 @@ const INITIAL_RALLY_DATA = {
     landingZone: null
 };
 
-// ... [getCoordinateDescription function remains the same] ...
+// --- ANALYTICS HELPER ---
 const getCoordinateDescription = (point) => {
     if (!point || !point.x || !point.y) return "";
     const x = parseFloat(point.x);
     const y = parseFloat(point.y);
     const isLeft = x <= 9;
+
+    // Normalize coordinates (0-9m x 0-9m)
     let localX = isLeft ? x : (x - 9);
     let localY = y;
+
+    // Distances
     const distFromNet = isLeft ? (9 - localX) : localX;
     const distFromSideline = Math.min(y, 9 - y);
 
+    // Zone Logic
     let zone;
     let isLeftSideOfCourt, isRightSideOfCourt;
-    if (isLeft) { isLeftSideOfCourt = localY >= 6; isRightSideOfCourt = localY <= 3; }
-    else { isLeftSideOfCourt = localY <= 3; isRightSideOfCourt = localY >= 6; }
+    if (isLeft) {
+        isLeftSideOfCourt = localY >= 6; isRightSideOfCourt = localY <= 3;
+    } else {
+        isLeftSideOfCourt = localY <= 3; isRightSideOfCourt = localY >= 6;
+    }
 
     if (distFromNet <= 4.5) {
         if (isLeftSideOfCourt) zone = 4; else if (isRightSideOfCourt) zone = 2; else zone = 3;
@@ -35,8 +43,10 @@ const getCoordinateDescription = (point) => {
         if (isLeftSideOfCourt) zone = 5; else if (isRightSideOfCourt) zone = 1; else zone = 6;
     }
 
+    // Descriptions
     let depthDesc = "";
     let angleDesc = "";
+
     if (distFromNet < 0.8) depthDesc = "Tight";
     else if (distFromNet <= 3.2) depthDesc = "3m";
     else if (distFromNet <= 6.0) depthDesc = "Short";
@@ -106,7 +116,7 @@ export const gameReducer = (state, action) => {
     };
 
     switch (action.type) {
-        // ... [TIMEOUT, INIT_SERVE, REFEREE, CHALLENGE, SUBS, SELECT_PLAYER unchanged] ...
+        // ... [TIMEOUT, INIT_SERVE, REFEREE, SUBS unchanged] ...
         case 'REQUEST_TIMEOUT': {
             const team = action.payload;
             if (state.timeoutsUsed[team] >= 2) return state;
@@ -135,6 +145,8 @@ export const gameReducer = (state, action) => {
             if (autoSwapLog) l = [{ id: Date.now() + 1, time: getTime(), text: autoSwapLog.text, type: autoSwapLog.type }, ...l];
             return { ...baseState, score: { ...baseState.score, [winner]: baseState.score[winner] + 1 }, servingTeam: winner, rotations: { ...baseState.rotations, [winner]: newRotation }, liberoOriginals: { ...baseState.liberoOriginals, [winner]: newOriginals }, benches: newBenches, matchPhase: 'PRE_SERVE', logs: l, selectedPlayer: null, rallyData: INITIAL_RALLY_DATA, previousState: createSnapshot(baseState) };
         }
+
+        // --- [FIXED] CHALLENGE RESULT ---
         case 'CHALLENGE_RESULT': {
             const { team, success } = action.payload;
             if (!success) {
@@ -142,19 +154,44 @@ export const gameReducer = (state, action) => {
                 return { ...state, challengesUsed: newChallenges, logs: addLog(`CHALLENGE FAILED (${teamName(team)})`, 'danger') };
             }
             const winner = team;
+
+            // Reversion Logic
             const currentTotalScore = state.score.home + state.score.away;
             const prevTotalScore = state.previousState ? (state.previousState.score.home + state.previousState.score.away) : 0;
             const isPointReversal = state.previousState && (currentTotalScore > prevTotalScore);
+
+            // Revert state to previous snapshot if points were added
             let baseState = isPointReversal ? state.previousState : state;
+
+            // Calculate rotation based on the CORRECT winner
             const rotResult = calculateRotation(winner, baseState);
             if (!rotResult) return state;
             const { newRotation, newOriginals, autoSwapLog, returningPlayer } = rotResult;
+
             let newBenches = { ...baseState.benches };
             if (returningPlayer) newBenches[winner] = newBenches[winner].filter(p => p.id !== returningPlayer.id);
-            let l = [{ id: Date.now(), time: getTime(), text: `CHALLENGE SUCCESS: Overturn -> ${teamName(winner)} Point`, type: 'success' }, ...baseState.logs];
+
+            // [FIX] Use `state.logs` (Current Logs) instead of `baseState.logs` (Old Logs)
+            // This ensures the "Ace" log stays visible, followed by the "Overturn" log.
+            let l = [{ id: Date.now(), time: getTime(), text: `CHALLENGE SUCCESS: Overturn -> ${teamName(winner)} Point`, type: 'success' }, ...state.logs];
+
             if (autoSwapLog) l = [{ id: Date.now() + 1, time: getTime(), text: autoSwapLog.text, type: autoSwapLog.type }, ...l];
-            return { ...baseState, score: { ...baseState.score, [winner]: baseState.score[winner] + 1 }, servingTeam: winner, rotations: { ...baseState.rotations, [winner]: newRotation }, liberoOriginals: { ...baseState.liberoOriginals, [winner]: newOriginals }, benches: newBenches, matchPhase: 'PRE_SERVE', logs: l, rallyData: INITIAL_RALLY_DATA, previousState: createSnapshot(baseState), challengesUsed: state.challengesUsed };
+
+            return {
+                ...baseState,
+                score: { ...baseState.score, [winner]: baseState.score[winner] + 1 },
+                servingTeam: winner,
+                rotations: { ...baseState.rotations, [winner]: newRotation },
+                liberoOriginals: { ...baseState.liberoOriginals, [winner]: newOriginals },
+                benches: newBenches,
+                matchPhase: 'PRE_SERVE',
+                logs: l,
+                rallyData: INITIAL_RALLY_DATA,
+                previousState: createSnapshot(baseState),
+                challengesUsed: state.challengesUsed // Keep current challenge count
+            };
         }
+
         case 'REQUEST_SUB': return { ...state, matchPhase: 'SUBSTITUTION', actionTeam: action.payload, selectedPlayer: null };
         case 'REQUEST_LIBERO_SWAP': return { ...state, matchPhase: 'LIBERO_SWAP', actionTeam: action.payload, selectedPlayer: null };
         case 'EXECUTE_SUB': {
@@ -198,33 +235,23 @@ export const gameReducer = (state, action) => {
         }
         case 'CANCEL_SELECTION': case 'CANCEL_ACTION': return { ...state, selectedPlayer: null, matchPhase: state.matchPhase === 'DIG_DECISION' ? 'LANDING' : (['SUBSTITUTION', 'LIBERO_SWAP'].includes(state.matchPhase) ? 'PRE_SERVE' : state.matchPhase), actionTeam: null, rallyData: { ...state.rallyData, serveType: null, serveResult: null, blockers: [] } };
 
+        // --- UNDO LOGIC (Preserved from previous step) ---
         case 'UNDO_STEP': {
             const current = state.matchPhase;
             if (current === 'SERVE') { if (state.rallyData.serveType) return { ...state, rallyData: { ...state.rallyData, serveType: null } }; return state; }
             if (current === 'SERVE_LANDING') return { ...state, matchPhase: 'SERVE', possession: state.servingTeam, rallyData: { ...state.rallyData, serveResult: null }, selectedPlayer: state.rotations[state.servingTeam][0] };
 
-            // UNDO FROM RECEPTION: Check where we came from
             if (current === 'RECEPTION') {
-                // If there is an attacker, we came from DIG_DECISION
                 if (state.rallyData.attacker) {
                     const attId = state.rallyData.attacker.id;
                     const isHomeAttacker = state.rotations.home.some(p => p && p.id === attId) || state.benches.home.some(p => p.id === attId);
                     const attTeam = isHomeAttacker ? 'home' : 'away';
-                    return {
-                        ...state,
-                        matchPhase: 'DIG_DECISION',
-                        possession: attTeam, // Give ball back to attacker for UI
-                        selectedPlayer: state.rallyData.target
-                    };
+                    return { ...state, matchPhase: 'DIG_DECISION', possession: attTeam, selectedPlayer: state.rallyData.target };
                 }
-                // Else we came from SERVE_LANDING
                 return { ...state, matchPhase: 'SERVE_LANDING', possession: state.servingTeam, selectedPlayer: null, rallyData: { ...state.rallyData, landingPoint: null } };
             }
 
-            // UNDO FROM SET: Always go back to RECEPTION (since we inserted it)
-            if (current === 'SET') {
-                return { ...state, matchPhase: 'RECEPTION', selectedPlayer: state.rallyData.receiver };
-            }
+            if (current === 'SET') return { ...state, matchPhase: 'RECEPTION', selectedPlayer: state.rallyData.receiver };
 
             if (current === 'ATTACK') return { ...state, matchPhase: 'SET', selectedPlayer: state.rallyData.setter };
             if (current === 'LANDING') { if (state.rallyData.attackType === 'Dump') return { ...state, matchPhase: 'SET', selectedPlayer: state.rallyData.setter, rallyData: { ...state.rallyData, attackType: null } }; return { ...state, matchPhase: 'ATTACK', selectedPlayer: state.rallyData.attacker }; }
@@ -283,24 +310,16 @@ export const gameReducer = (state, action) => {
             const grade = action.payload.quality;
             const landingDesc = state.rallyData.landingPoint ? getCoordinateDescription(state.rallyData.landingPoint) : (state.rallyData.landingZone ? `Zone ${state.rallyData.landingZone}` : "");
 
-            // Check if this is a DIG or a PASS (Serve Receive)
             const isDig = !!state.rallyData.attacker;
             const actionType = isDig ? "Dig" : "Pass";
-
             const playerStr = state.rallyData.receiver ? fmt(state.rallyData.receiver) : (isDig ? "Unknown Dig" : "Ball Received");
 
             if (grade === 0) {
-                // Error on Reception/Dig -> Point to the OTHER team.
-                // Since possession is already set to the receiving/digging team in this phase,
-                // the winner is the opponent of 'state.possession'.
                 const winner = state.possession === 'home' ? 'away' : 'home';
-
                 const snapshot = createSnapshot(state);
                 const logText = `${playerStr} ${actionType} Error @ ${landingDesc}`;
 
-                // Calculate rotation for the winner
                 const rotResult = calculateRotation(winner, state);
-                // ... (standard win logic below) ...
                 if (!rotResult) return state;
                 const { newRotation, newOriginals, returningPlayer } = rotResult;
                 let newBenches = { ...state.benches };
@@ -319,13 +338,7 @@ export const gameReducer = (state, action) => {
                 };
             }
 
-            // Success -> Move to SET
-            return {
-                ...state,
-                matchPhase: 'SET',
-                selectedPlayer: null,
-                logs: addLog(`${playerStr} ${actionType}: ${grade} (${landingDesc})`, 'info')
-            };
+            return { ...state, matchPhase: 'SET', selectedPlayer: null, logs: addLog(`${playerStr} ${actionType}: ${grade} (${landingDesc})`, 'info') };
         }
 
         case 'EXECUTE_SET':
@@ -387,19 +400,16 @@ export const gameReducer = (state, action) => {
 
             // [FIXED] TRANSITION TO RECEPTION (Grading) FOR DIGS
             if (result === 'DIG') {
-                // If digger is known (from Zone click), select them.
                 const digger = state.rallyData.target;
-
                 return {
                     ...state,
-                    matchPhase: 'RECEPTION', // Move to grading phase!
+                    matchPhase: 'RECEPTION',
                     possession: defTeam,
-                    selectedPlayer: digger, // Select them so you can just click grade
+                    selectedPlayer: digger,
                     rallyData: {
                         ...state.rallyData,
-                        receiver: digger // Ensure receiver field is populated for RECEPTION phase
+                        receiver: digger
                     }
-                    // Note: We do NOT log "Dig" yet. We wait for the Grade.
                 };
             }
             return state;

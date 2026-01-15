@@ -1,4 +1,3 @@
-// src/hooks/useVolleyballGame.js
 import { useEffect, useReducer } from 'react';
 import { createInitialState, gameReducer } from '../reducers/gameReducer';
 import { useMatchStore } from '../store/matchStore';
@@ -21,7 +20,12 @@ export const useVolleyballGame = () => {
     // Action wrappers for clearer UI code
     const actions = {
         selectPlayer: (player) => dispatch({ type: 'SELECT_PLAYER', payload: player }),
-        selectZone: (zoneIndex, opponentTeam) => dispatch({ type: 'SELECT_LANDING_ZONE', payload: { zoneIndex, opponentTeam } }),
+
+        // [UPDATED] selectZone now triggers SELECT_LANDING_POINT
+        // coordinateOrZone can be a number (1-6) OR an object {x, y}
+        selectZone: (coordinateOrZone, opponentTeam) =>
+            dispatch({ type: 'SELECT_LANDING_POINT', payload: { point: coordinateOrZone, opponentTeam } }),
+
         handleChallenge: (team, result) => dispatch({ type: 'CHALLENGE_RESULT', payload: { team, success: result.success } }),
         handleReferee: (winner, reason) => dispatch({ type: 'REFEREE_DECISION', payload: { winner, reason } }),
         requestSub: (team) => dispatch({ type: 'REQUEST_SUB', payload: team }),

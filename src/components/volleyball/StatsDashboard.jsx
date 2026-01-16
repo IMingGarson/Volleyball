@@ -29,7 +29,6 @@ export default function StatsDashboard({ state, onClose }) {
                 const isLoserAction = e.team === loser;
                 const isExplicitError = e.result === 'ERROR';
                 const isGradeZero = (e.type === 'RECEPTION' || e.type === 'DIG') && e.grade === 0;
-
                 return isLoserAction && (isExplicitError || isGradeZero);
             });
 
@@ -42,7 +41,26 @@ export default function StatsDashboard({ state, onClose }) {
         return data;
     }, [history]);
 
-    // --- 2. SUB-COMPONENTS ---
+    // --- 2. HELPERS ---
+
+    // Deduplicate players using a Map to ensure unique rows
+    const getUniquePlayers = (team) => {
+        const rotationPlayers = state.rotations[team].filter(p => p !== null);
+        const benchPlayers = state.benches[team] || [];
+
+        const allPlayers = [...rotationPlayers, ...benchPlayers];
+        const uniqueMap = new Map();
+
+        allPlayers.forEach(p => {
+            if (!uniqueMap.has(p.id)) {
+                uniqueMap.set(p.id, p);
+            }
+        });
+
+        return Array.from(uniqueMap.values()).sort((a, b) => a.number - b.number);
+    };
+
+    // --- 3. SUB-COMPONENTS ---
 
     const StatRow = ({ label, homeVal, awayVal, icon: Icon, colorClass }) => {
         const total = homeVal + awayVal || 1;
@@ -68,10 +86,9 @@ export default function StatsDashboard({ state, onClose }) {
         const isHome = rally.winner === 'home';
         const [mainReason, detail] = (rally.reason || "").split("->");
 
-        // [FIX] Use endScore if available, fallback to calculating it manually if old data
         const displayScore = rally.endScore
             ? `${rally.endScore.home}-${rally.endScore.away}`
-            : `${rally.scoreState.home}-${rally.scoreState.away}`; // Fallback for old records
+            : `${rally.scoreState.home}-${rally.scoreState.away}`;
 
         return (
             <div className={`p-3 rounded-lg border-l-4 mb-2 flex justify-between items-center ${isHome ? 'border-orange-500 bg-orange-50' : 'border-red-600 bg-red-50'}`}>
@@ -81,7 +98,7 @@ export default function StatsDashboard({ state, onClose }) {
                 </div>
                 <div className="text-right">
                     <span className={`text-xs font-black px-2 py-1 rounded text-white ${isHome ? 'bg-orange-500' : 'bg-red-600'}`}>
-                        {rally.winner === 'home' ? 'home' : 'away'}
+                        {rally.winner === 'home' ? 'HOME' : 'AWAY'}
                     </span>
                     <div className="text-[10px] font-mono text-slate-400 mt-1">
                         {displayScore}
@@ -100,27 +117,55 @@ export default function StatsDashboard({ state, onClose }) {
             stats.attack.total +
             stats.reception.total +
             stats.dig.total +
-            stats.block.solo +
-            stats.block.assist;
+            stats.block.points +
+            stats.block.touch;
 
         if (totalActivity === 0) return null;
+
+        // Colors for Stats
+        const recRate = parseFloat(stats.receptionRate);
+        let recColor = 'text-slate-400';
+        if (stats.reception.total > 0) {
+            if (recRate >= 60) recColor = 'text-emerald-600 font-bold';
+            else if (recRate >= 40) recColor = 'text-amber-600';
+            else recColor = 'text-red-500 font-bold';
+        }
+
+        const eff = parseFloat(stats.attackEff);
+        let effColor = 'text-slate-500';
+        if (stats.attack.total > 0) {
+            if (eff >= 0.30) effColor = 'text-emerald-600 font-bold';
+            else if (eff >= 0.10) effColor = 'text-slate-700';
+            else if (eff < 0.05) effColor = 'text-red-500';
+        }
 
         return (
             <tr className="border-b border-slate-100 text-xs hover:bg-slate-50 transition-colors">
                 <td className="py-2 pl-2 font-bold text-slate-700 truncate max-w-[90px]">#{player.number} {player.name}</td>
                 <td className="text-center font-black text-slate-800 bg-slate-50">{stats.points}</td>
-                <td className="text-center text-slate-500">{stats.attack.kill}</td>
-                <td className="text-center text-slate-500">{stats.block.solo + stats.block.assist}</td>
+
+                <td className={`text-center ${effColor}`}>
+                    {stats.attack.total > 0 ? stats.attackEff : '-'}
+                </td>
+
+                <td className="text-center text-slate-500">
+                    {stats.block.points > 0 ? stats.block.points : '-'}
+                </td>
+
                 <td className="text-center text-slate-500">{stats.serve.ace}</td>
+
                 <td className={`text-center font-bold ${stats.serve.error > 0 ? 'text-red-500' : 'text-slate-300'}`}>
                     {stats.serve.error}
                 </td>
-                <td className="text-center text-slate-500">{stats.reception.perfect}</td>
+
+                <td className={`text-center ${recColor}`}>
+                    {stats.reception.total > 0 ? `${stats.receptionRate}%` : '-'}
+                </td>
             </tr>
         );
     };
 
-    // --- 3. RENDER ---
+    // --- 4. RENDER ---
 
     return (
         <div className="fixed inset-0 z-[100] flex justify-end">
@@ -141,12 +186,12 @@ export default function StatsDashboard({ state, onClose }) {
                 <div className="p-6 flex justify-between items-center bg-slate-900 text-white shadow-inner shrink-0">
                     <div className="text-center">
                         <div className="text-3xl font-black text-orange-500">{score.home}</div>
-                        <div className="text-[10px] font-bold tracking-widest opacity-50">home</div>
+                        <div className="text-[10px] font-bold tracking-widest opacity-50">HOME</div>
                     </div>
                     <div className="text-xs font-mono opacity-30">VS</div>
                     <div className="text-center">
                         <div className="text-3xl font-black text-red-500">{score.away}</div>
-                        <div className="text-[10px] font-bold tracking-widest opacity-50">away</div>
+                        <div className="text-[10px] font-bold tracking-widest opacity-50">AWAY</div>
                     </div>
                 </div>
 
@@ -201,19 +246,15 @@ export default function StatsDashboard({ state, onClose }) {
                                             <tr>
                                                 <th className="text-left py-2 pl-2">Player</th>
                                                 <th className="w-8 text-center">PTS</th>
-                                                <th className="w-8 text-center">ATK</th>
+                                                <th className="w-8 text-center">EFF</th>
                                                 <th className="w-8 text-center">BLK</th>
                                                 <th className="w-8 text-center">ACE</th>
                                                 <th className="w-8 text-center text-red-400">SE</th>
-                                                <th className="w-8 text-center">REC</th>
+                                                <th className="w-8 text-center">REC%</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {[...state.rotations[team], ...state.benches[team]]
-                                                .filter(p => p)
-                                                .sort((a, b) => a.number - b.number)
-                                                .map(p => <PlayerRow key={p.id} player={p} />)
-                                            }
+                                            {getUniquePlayers(team).map(p => <PlayerRow key={p.id} player={p} />)}
                                         </tbody>
                                     </table>
                                 </div>

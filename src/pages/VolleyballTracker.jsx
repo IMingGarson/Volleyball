@@ -204,7 +204,7 @@ const gameReducer = (state, action) => {
 
         case 'REQUEST_TIMEOUT': {
             const team = action.payload;
-            const teamCode = team === 'home' ? 'HOME' : 'AWAY';
+            const teamCode = team === 'home' ? 'home' : 'away';
             if (state.timeoutsUsed[team] >= 2) return state;
             if (!['PRE_SERVE', 'SERVE'].includes(state.matchPhase)) return state;
             const newTimeouts = { ...state.timeoutsUsed };
@@ -214,7 +214,7 @@ const gameReducer = (state, action) => {
 
         case 'REFEREE_DECISION': {
             const { winner, reason } = action.payload;
-            const teamCode = winner === 'home' ? 'HOME' : 'AWAY';
+            const teamCode = winner === 'home' ? 'home' : 'away';
             const snapshot = createSnapshot(state);
 
             const shouldRotate = winner !== state.servingTeam;
@@ -248,7 +248,7 @@ const gameReducer = (state, action) => {
 
             // SUCCESSFUL CHALLENGE = OVERTURN VERDICT
             const winner = challenger;
-            const winnerCode = winner === 'home' ? 'HOME' : 'AWAY';
+            const winnerCode = winner === 'home' ? 'home' : 'away';
 
             // [FIX FOR 1-1 ISSUE]
             // We need to check if a point was just awarded (Score increased compared to snapshot).
@@ -666,7 +666,7 @@ export default function VolleyballTracker() {
             </header>
 
             <div className="flex-1 flex overflow-hidden relative">
-                {/* HOME SIDEBAR */}
+                {/* home SIDEBAR */}
                 <div className="hidden md:flex flex-col w-32 xl:w-64 bg-white border-r border-slate-300 py-2 gap-2 z-20 shadow-xl flex-shrink-0">
                     <LiberoSection team="home" teamColor="orange" liberos={setupData.home.liberos} rotation={state.rotations.home} />
                     <div className="w-full border-t border-slate-100 my-1"></div>
@@ -707,7 +707,7 @@ export default function VolleyballTracker() {
                     <div className="h-32 md:h-40 bg-white border-t border-slate-200 p-2 z-40 shadow-[0_-5px_30px_rgba(0,0,0,0.1)] flex-shrink-0"><div className="h-full max-w-7xl mx-auto flex items-center justify-center">{renderControls()}</div></div>
                 </div>
 
-                {/* AWAY SIDEBAR */}
+                {/* away SIDEBAR */}
                 <div className="hidden md:flex flex-col w-32 xl:w-64 bg-white border-l border-slate-300 py-2 gap-2 z-20 shadow-xl flex-shrink-0">
                     <LiberoSection team="away" teamColor="red" liberos={setupData.away.liberos} rotation={state.rotations.away} />
                     <div className="w-full border-t border-slate-100 my-1"></div>

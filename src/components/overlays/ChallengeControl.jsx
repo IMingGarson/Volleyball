@@ -10,7 +10,7 @@ const ChallengeControl = ({ team, onClose, onResolve }) => {
 
     // 1. Resolve Team Name and Theme
     const teamData = setupData[team]; // 'home' or 'away'
-    const teamName = teamData?.name || (team === 'home' ? 'HOME' : 'AWAY');
+    const teamName = teamData?.name || (team === 'home' ? 'home' : 'away');
 
     // 2. Resolve Theme Colors
     // If teamData.theme exists, look it up in map. Otherwise fallback to orange(home)/red(away)

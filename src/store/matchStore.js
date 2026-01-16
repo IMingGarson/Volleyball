@@ -24,8 +24,8 @@ export const useMatchStore = create(
 
             // Active Game State
             setupData: {
-                home: { name: 'HOME', theme: 'orange', bench: [], court: Array(6).fill(null), liberos: [] },
-                away: { name: 'AWAY', theme: 'red', bench: [], court: Array(6).fill(null), liberos: [] }
+                home: { name: 'home', theme: 'orange', bench: [], court: Array(6).fill(null), liberos: [] },
+                away: { name: 'away', theme: 'red', bench: [], court: Array(6).fill(null), liberos: [] }
             },
 
             liveGameBackup: null,
@@ -100,8 +100,8 @@ export const useMatchStore = create(
                 setsWon: { home: 0, away: 0 },
                 matchRules: { bestOf: 3, setPoints: 25, tiebreakPoints: 15 },
                 setupData: {
-                    home: { name: 'HOME', theme: 'orange', bench: [], court: Array(6).fill(null), liberos: [] },
-                    away: { name: 'AWAY', theme: 'red', bench: [], court: Array(6).fill(null), liberos: [] }
+                    home: { name: 'home', theme: 'orange', bench: [], court: Array(6).fill(null), liberos: [] },
+                    away: { name: 'away', theme: 'red', bench: [], court: Array(6).fill(null), liberos: [] }
                 }
             })
         }),

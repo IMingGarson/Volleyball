@@ -26,7 +26,7 @@ export default function MatchHeader({ score }) {
 
             {/* --- Content Layer --- */}
 
-            {/* HOME SIDE (Left) */}
+            {/* home SIDE (Left) */}
             <div className="flex-1 flex items-center justify-start z-10 pl-4 gap-4">
                 {/* Score Box */}
                 <div
@@ -53,7 +53,7 @@ export default function MatchHeader({ score }) {
                 </div>
             </div>
 
-            {/* AWAY SIDE (Right) */}
+            {/* away SIDE (Right) */}
             <div className="flex-1 flex items-center justify-end z-10 pr-4 gap-4">
                 {/* Team Name */}
                 <div className="hidden xl:flex flex-col items-end">

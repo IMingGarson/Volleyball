@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { BarChart3, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useVolleyballGame } from '../hooks/useVolleyballGame';
@@ -10,6 +10,7 @@ import ControlPanel from '../components/volleyball/ControlPanel';
 import CourtDisplay from '../components/volleyball/CourtDisplay';
 import LogDrawer from '../components/volleyball/LogDrawer';
 import MatchHeader from '../components/volleyball/MatchHeader';
+import StatsDashboard from '../components/volleyball/StatsDashboard';
 
 // Overlays
 import ChallengeControl from '../components/overlays/ChallengeControl';
@@ -33,6 +34,8 @@ export default function VolleyballTracker() {
     // Winner State
     const [setWinner, setSetWinner] = useState(null);
     const [isMatchOver, setIsMatchOver] = useState(false);
+
+    const [showStats, setShowStats] = useState(false);
 
     // --- GAME END LOGIC ---
     useEffect(() => {
@@ -139,7 +142,7 @@ export default function VolleyballTracker() {
 
             <div className="flex-1 flex overflow-hidden relative">
 
-                {/* --- LEFT SIDEBAR (HOME) --- */}
+                {/* --- LEFT SIDEBAR (home) --- */}
                 <BenchSidebar
                     team="home"
                     data={setupData.home}
@@ -207,7 +210,7 @@ export default function VolleyballTracker() {
                     <ControlPanel state={state} actions={actions} />
                 </div>
 
-                {/* --- RIGHT SIDEBAR (AWAY) --- */}
+                {/* --- RIGHT SIDEBAR (away) --- */}
                 <BenchSidebar
                     team="away"
                     data={setupData.away}
@@ -219,6 +222,15 @@ export default function VolleyballTracker() {
 
                 {/* --- LOGS --- */}
                 <LogDrawer logs={state.logs} isOpen={isLogOpen} toggle={() => setIsLogOpen(!isLogOpen)} />
+                <button
+                    onClick={() => setShowStats(true)}
+                    className="fixed top-8 right-16 z-40 bg-white p-3 rounded-full shadow-xl text-slate-700 hover:text-indigo-600 hover:scale-110 transition-all"
+                >
+                    <BarChart3 size={24} />
+                </button>
+
+                {/* Dashboard Overlay */}
+                {showStats && <StatsDashboard state={state} onClose={() => setShowStats(false)} />}
             </div>
         </div>
     );

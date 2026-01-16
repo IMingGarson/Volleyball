@@ -4,7 +4,7 @@ export const REF_ACTIONS = {
     MAKE_CALL: 'MAKE_CALL',
     CONFIRM_DECISION: 'CONFIRM_DECISION',
     RESET: 'RESET',
-    CANCEL: 'CANCEL' // Added this for UI "Back" functionality
+    CANCEL: 'CANCEL'
 };
 
 export const FAULTS = {
@@ -17,7 +17,6 @@ export const FAULTS = {
     SCREENING: { code: 'SCREENING', name: 'SCREEN', icon: 'UserX' },
     ROTATION: { code: 'ROTATION', name: 'ROTATION', icon: 'RefreshCcw' },
     SERVICE_DELAY: { code: 'SERVICE_DELAY', name: 'DELAY (8s)', icon: 'Timer' },
-    // --- ADDED REPLAY ---
     REPLAY: { code: 'REPLAY', name: 'REPLAY POINT', icon: 'RefreshCcw' }
 };
 
@@ -38,7 +37,8 @@ export const initialRefereeState = {
 export function refereeReducer(state, action) {
     switch (action.type) {
         case REF_ACTIONS.MAKE_CALL: {
-            const { faultCode, faultingTeam } = action.payload;
+            // [UPDATED] Extract teamName from payload
+            const { faultCode, faultingTeam, teamName } = action.payload;
             const fault = FAULTS[faultCode];
 
             // --- REPLAY LOGIC ---
@@ -48,26 +48,25 @@ export function refereeReducer(state, action) {
                     status: 'CONFIRMATION',
                     currentCall: {
                         fault,
-                        faultingTeam: 'NO ONE'
+                        faultingTeam: 'NONE'
                     },
                     finalDecision: {
-                        winner: null, // No point awarded
+                        winner: null,
                         reason: 'Replay'
                     }
                 };
             }
 
-            // --- STANDARD FAULT LOGIC ---
-            // If Team A faults, Team B wins (and vice versa)
-            const provisionalWinner = faultingTeam === 'A' ? 'B' : 'A';
+            // [UPDATED] Use provided name or fallback
+            const teamLabel = teamName || (faultingTeam === 'home' ? 'home' : 'away');
 
             return {
                 ...state,
                 status: 'CONFIRMATION',
                 currentCall: { fault, faultingTeam },
                 finalDecision: {
-                    winner: provisionalWinner,
-                    reason: `${fault.name} (${faultingTeam})`
+                    winner: teamLabel,
+                    reason: `${fault.name} (${teamLabel})` // e.g. "NET TOUCH (KARASUNO)"
                 }
             };
         }

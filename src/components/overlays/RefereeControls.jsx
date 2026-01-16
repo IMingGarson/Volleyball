@@ -117,7 +117,7 @@ const RefereeControls = ({ onPointAwarded, onClose }) => {
                 {/* --- FAULT GRID --- */}
                 <div className="flex-1 overflow-hidden flex relative bg-slate-50/50">
 
-                    {/* LEFT COLUMN (HOME) */}
+                    {/* LEFT COLUMN (home) */}
                     <div className="flex-1 flex flex-col border-r border-slate-200">
                         <div className="p-4 text-center border-b border-slate-100 bg-white sticky top-0 z-10">
                             <span
@@ -176,7 +176,7 @@ const RefereeControls = ({ onPointAwarded, onClose }) => {
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN (AWAY) */}
+                    {/* RIGHT COLUMN (away) */}
                     <div className="flex-1 flex flex-col bg-slate-50/30">
                         <div className="p-4 text-center border-b border-slate-100 bg-white sticky top-0 z-10">
                             <span

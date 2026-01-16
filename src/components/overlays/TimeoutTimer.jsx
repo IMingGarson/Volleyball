@@ -24,7 +24,7 @@ const TimeoutTimer = ({ team, onClose }) => {
 
     // 1. Resolve Data & Theme
     const teamData = setupData[team];
-    const teamName = teamData?.name || (team === 'home' ? 'HOME' : 'AWAY');
+    const teamName = teamData?.name || (team === 'home' ? 'home' : 'away');
     const themeKey = teamData?.theme || (team === 'home' ? 'orange' : 'red');
     const theme = THEME_MAP[themeKey] || THEME_MAP.orange;
 

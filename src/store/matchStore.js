@@ -28,6 +28,8 @@ export const useMatchStore = create(
                 away: { name: 'away', theme: 'red', bench: [], court: Array(6).fill(null), liberos: [] }
             },
 
+            setSetupData: (data) => set({ setupData: data }),
+
             liveGameBackup: null,
 
             // 1. Fetch the list of teams from API

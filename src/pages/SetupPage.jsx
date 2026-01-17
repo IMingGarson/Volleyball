@@ -1,8 +1,8 @@
-import { ArrowLeftRight, ArrowRight, Check, GripHorizontal, Loader2, RefreshCw, Settings, Shield, Trash2, Trophy, User, Users } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, Check, Database, GripHorizontal, Loader2, RefreshCw, Settings, Shield, Trash2, Trophy, User, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMatchStore } from '../store/matchStore';
-import { THEME_MAP } from '../utils/constants';
+import { MOCK_SETUP_DATA, THEME_MAP } from '../utils/constants';
 
 const PlayerCard = ({ player, onDragStart, theme }) => (
     <div
@@ -102,7 +102,8 @@ export default function SetupPage() {
         setNumber,
         startSet,
         resetMatch,
-        isLoading
+        isLoading,
+        setSetupData
     } = useMatchStore();
 
     const [step, setStep] = useState(location.state?.jumpToStep || 1);
@@ -117,6 +118,13 @@ export default function SetupPage() {
     useEffect(() => {
         loadAvailableTeams();
     }, []);
+
+    const handleLoadMock = () => {
+        // [TODO] remove this mock data load in production
+        if (window.confirm("Load Mock Data? This will overwrite current entries.")) {
+            setSetupData(MOCK_SETUP_DATA);
+        }
+    };
 
     const [activeTab, setActiveTab] = useState('home');
     const [homeSide, setHomeSide] = useState('left');
@@ -374,7 +382,13 @@ export default function SetupPage() {
                     <button onClick={validateAndStart} className="bg-gray-900 hover:bg-black text-white px-6 py-2.5 rounded-full text-sm font-semibold shadow-lg flex items-center gap-2 transition-all active:scale-95">Start Match <ArrowRight size={16} /></button>
                 </div>
             </header>
-
+            <button
+                onClick={handleLoadMock}
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded text-xs font-bold transition-colors border border-slate-300"
+            >
+                <Database size={14} />
+                LOAD DEMO
+            </button>
             <div className="flex justify-center items-center pt-8 pb-4 gap-4">
                 <div className="bg-gray-200/50 p-1 rounded-full flex relative">
                     {['home', 'away'].map(side => {

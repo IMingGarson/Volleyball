@@ -1,5 +1,46 @@
 // src/utils/constants.js
 
+export const MOCK_SETUP_DATA = {
+    home: {
+        name: "KARASUNO",
+        theme: "orange",
+        court: [
+            { id: "h9", number: "9", name: "KAGEYAMA", pos: "S", isLibero: false },
+            { id: "h10", number: "10", name: "HINATA", pos: "MB", isLibero: false },
+            { id: "h5", number: "5", name: "TANAKA", pos: "OH", isLibero: false },
+            { id: "h1", number: "1", name: "DAICHI", "pos": "OPP", isLibero: false },
+            { id: "h11", number: "11", name: "TSUKISHIMA", pos: "MB", isLibero: false },
+            { id: "h3", number: "3", name: "ASAHI", pos: "OH", isLibero: false }
+        ],
+        bench: [
+            { id: "h2", number: "2", name: "SUGAWARA", pos: "S", isLibero: false },
+            { id: "h12", number: "12", "name": "YAMAGUCHI", pos: "MB", isLibero: false }
+        ],
+        liberos: [
+            { id: "h4", number: "4", name: "NISHINOYA", pos: "L", isLibero: true }
+        ]
+    },
+    away: {
+        name: "NEKOMA",
+        theme: "red",
+        court: [
+            { id: "a5", number: "5", name: "KENMA", pos: "S", isLibero: false },
+            { id: "a11", number: "11", name: "LEV", pos: "MB", isLibero: false },
+            { id: "a6", number: "6", name: "FUKUNAGA", pos: "OH", isLibero: false },
+            { id: "a2", number: "2", name: "KAI", pos: "OPP", isLibero: false },
+            { id: "a1", number: "1", name: "KUROO", pos: "MB", isLibero: false },
+            { id: "a4", number: "4", name: "YAMAMOTO", pos: "OH", isLibero: false }
+        ],
+        bench: [
+            { id: "a7", number: "7", name: "INUOKA", pos: "OH", isLibero: false }
+        ],
+        liberos: [
+            { id: "a3", number: "3", name: "YAKU", pos: "L", isLibero: true },
+            { id: "a12", number: "12", name: "SHIBAYAMA", pos: "L", isLibero: true }
+        ]
+    }
+};
+
 export const FALLBACK_THEME = {
     hex: '#64748b',
     tint: 'text-slate-600',

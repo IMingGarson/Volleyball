@@ -8,6 +8,7 @@ export default function StatsDashboard({ state, onClose }) {
 
     // --- 1. AGGREGATE TEAM STATS ---
     const teamStats = useMemo(() => {
+        // data[team] stores points WON by that team
         const data = {
             home: { points: 0, kills: 0, blocks: 0, aces: 0, errors: 0 },
             away: { points: 0, kills: 0, blocks: 0, aces: 0, errors: 0 }
@@ -16,7 +17,6 @@ export default function StatsDashboard({ state, onClose }) {
         history.forEach(rally => {
             const winner = rally.winner;
             const loser = winner === 'home' ? 'away' : 'home';
-
             data[winner].points++;
 
             const events = rally.events || [];
@@ -25,6 +25,8 @@ export default function StatsDashboard({ state, onClose }) {
             const ace = events.find(e => e.type === 'SERVE' && e.result === 'ACE' && e.team === winner);
             const block = events.find(e => e.type === 'BLOCK' && e.result === 'SHUTDOWN' && e.team === winner);
 
+            // Logic: This calculates "Points won via Opponent Error"
+            // If Home wins via error, it's an Away Error.
             const error = events.find(e => {
                 const isLoserAction = e.team === loser;
                 const isExplicitError = e.result === 'ERROR';
@@ -43,16 +45,16 @@ export default function StatsDashboard({ state, onClose }) {
 
     // --- 2. HELPERS ---
 
-    // Deduplicate players using a Map to ensure unique rows
     const getUniquePlayers = (team) => {
         const rotationPlayers = state.rotations[team].filter(p => p !== null);
         const benchPlayers = state.benches[team] || [];
+        const liberoPlayers = (state.liberoLists && state.liberoLists[team]) ? state.liberoLists[team] : [];
 
-        const allPlayers = [...rotationPlayers, ...benchPlayers];
+        const allPlayers = [...rotationPlayers, ...benchPlayers, ...liberoPlayers];
         const uniqueMap = new Map();
 
         allPlayers.forEach(p => {
-            if (!uniqueMap.has(p.id)) {
+            if (p && !uniqueMap.has(p.id)) {
                 uniqueMap.set(p.id, p);
             }
         });
@@ -85,7 +87,6 @@ export default function StatsDashboard({ state, onClose }) {
     const HistoryItem = ({ rally }) => {
         const isHome = rally.winner === 'home';
         const [mainReason, detail] = (rally.reason || "").split("->");
-
         const displayScore = rally.endScore
             ? `${rally.endScore.home}-${rally.endScore.away}`
             : `${rally.scoreState.home}-${rally.scoreState.away}`;
@@ -111,18 +112,9 @@ export default function StatsDashboard({ state, onClose }) {
     const PlayerRow = ({ player }) => {
         const { stats } = getPlayerStats(history, player.id);
 
-        const totalActivity =
-            stats.points +
-            stats.serve.total +
-            stats.attack.total +
-            stats.reception.total +
-            stats.dig.total +
-            stats.block.points +
-            stats.block.touch;
+        // [FIX] Removed "if (totalActivity === 0) return null;" so all players show
 
-        if (totalActivity === 0) return null;
-
-        // Colors for Stats
+        // Color Logic
         const recRate = parseFloat(stats.receptionRate);
         let recColor = 'text-slate-400';
         if (stats.reception.total > 0) {
@@ -134,9 +126,9 @@ export default function StatsDashboard({ state, onClose }) {
         const eff = parseFloat(stats.attackEff);
         let effColor = 'text-slate-500';
         if (stats.attack.total > 0) {
-            if (eff >= 0.30) effColor = 'text-emerald-600 font-bold';
-            else if (eff >= 0.10) effColor = 'text-slate-700';
-            else if (eff < 0.05) effColor = 'text-red-500';
+            if (eff >= 0.300) effColor = 'text-emerald-600 font-bold';
+            else if (eff >= 0.100) effColor = 'text-slate-700';
+            else if (eff < 0.050) effColor = 'text-red-500';
         }
 
         return (
@@ -150,6 +142,11 @@ export default function StatsDashboard({ state, onClose }) {
 
                 <td className="text-center text-slate-500">
                     {stats.block.points > 0 ? stats.block.points : '-'}
+                </td>
+
+                {/* [FIX] Added Assists Column */}
+                <td className="text-center text-slate-500 font-medium text-blue-600">
+                    {stats.set.assist > 0 ? stats.set.assist : '-'}
                 </td>
 
                 <td className="text-center text-slate-500">{stats.serve.ace}</td>
@@ -216,7 +213,17 @@ export default function StatsDashboard({ state, onClose }) {
                             <StatRow label="Attack Kills" icon={Activity} homeVal={teamStats.home.kills} awayVal={teamStats.away.kills} colorClass="bg-emerald-500" />
                             <StatRow label="Kill Blocks" icon={Ban} homeVal={teamStats.home.blocks} awayVal={teamStats.away.blocks} colorClass="bg-violet-500" />
                             <StatRow label="Service Aces" icon={Zap} homeVal={teamStats.home.aces} awayVal={teamStats.away.aces} colorClass="bg-yellow-500" />
-                            <StatRow label="Opponent Errors" icon={X} homeVal={teamStats.home.errors} awayVal={teamStats.away.errors} colorClass="bg-rose-400" />
+
+                            {/* [FIX] Swapped values to show "Own Errors" */}
+                            {/* logic: home.errors = points home WON via error = AWAY's errors. */}
+                            {/* So to show HOME'S errors, we display teamStats.away.errors */}
+                            <StatRow
+                                label="Own Errors"
+                                icon={X}
+                                homeVal={teamStats.away.errors}
+                                awayVal={teamStats.home.errors}
+                                colorClass="bg-rose-400"
+                            />
 
                             <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
                                 <span className="text-xs font-bold text-slate-400 uppercase">Total Points Scored</span>
@@ -248,6 +255,8 @@ export default function StatsDashboard({ state, onClose }) {
                                                 <th className="w-8 text-center">PTS</th>
                                                 <th className="w-8 text-center">EFF</th>
                                                 <th className="w-8 text-center">BLK</th>
+                                                {/* [FIX] Added AST Header */}
+                                                <th className="w-8 text-center text-blue-600">AST</th>
                                                 <th className="w-8 text-center">ACE</th>
                                                 <th className="w-8 text-center text-red-400">SE</th>
                                                 <th className="w-8 text-center">REC%</th>

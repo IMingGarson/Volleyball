@@ -3,14 +3,12 @@ import { THEME_MAP } from '../../utils/constants';
 import { BenchCard, ChallengeButton, TimeoutButton } from '../common/ActionButtons';
 import { PlayerTag } from '../common/PlayerTag';
 
-// Helper component for Libero Section
 const LiberoSection = ({ team, liberos, theme, rotation, onRequestSwap, onPlayerClick, selectedPlayerId, isLocked }) => (
     <div className="flex flex-col items-center w-full px-2 gap-2 mt-2">
         <span className="text-xs font-black tracking-widest bg-slate-100 w-full text-center py-1 rounded text-slate-400 uppercase">LIBEROS</span>
         <div className="flex gap-2 w-full">
             <button
                 onClick={() => onRequestSwap(team)}
-                // Disable swap button if we are already in the middle of an action
                 disabled={isLocked}
                 className={`flex-1 border-2 font-black text-[10px] py-1.5 rounded bg-white hover:bg-slate-50 transition-colors ${theme.courtLines} ${theme.tint} ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
@@ -20,7 +18,6 @@ const LiberoSection = ({ team, liberos, theme, rotation, onRequestSwap, onPlayer
         <div className="flex flex-col gap-1 w-full">
             {liberos.map(lib => {
                 const isOnCourt = rotation.find(r => r && r.id === lib.id);
-                // Disable click if locked and this isn't the currently selected player
                 const isItemDisabled = isLocked && selectedPlayerId !== lib.id;
 
                 return isOnCourt
@@ -57,9 +54,6 @@ export default function BenchSidebar({ team, data, gameState, actions, onTimeout
 
     const borderClass = isHome ? "border-r" : "border-l";
 
-    // --- FIX LOGIC ---
-    // If we are in a Substitution or Libero Swap phase AND a player is already selected,
-    // we must lock the bench to prevent selecting a second bench player as the target.
     const isSelectionLocked = ['SUBSTITUTION', 'LIBERO_SWAP'].includes(matchPhase) && selectedPlayerId;
 
     return (
@@ -72,7 +66,7 @@ export default function BenchSidebar({ team, data, gameState, actions, onTimeout
                 onRequestSwap={actions.requestLiberoSwap}
                 onPlayerClick={actions.selectPlayer}
                 selectedPlayerId={selectedPlayerId}
-                isLocked={isSelectionLocked} // Pass lock state
+                isLocked={isSelectionLocked}
             />
 
             <div className="w-full border-t border-slate-100 my-1"></div>
@@ -90,7 +84,13 @@ export default function BenchSidebar({ team, data, gameState, actions, onTimeout
             <div className="flex-1 flex flex-col w-full px-2 overflow-y-auto gap-2">
                 <span className="text-xs font-black tracking-widest bg-slate-100 w-full text-center py-1 rounded text-slate-400 uppercase mt-2">BENCH</span>
                 {bench.map(p => {
-                    // Disable other bench players if locked (allow clicking the selected one to potentially deselect if logic permits, or just lock all others)
+                    // [FIX] Check if this player is actually on the court right now
+                    // This handles cases where the player is momentarily in both lists during a swap
+                    const isOnCourt = rotation.some(r => r && r.id === p.id);
+
+                    // If they are on court, do NOT render them in the bench list
+                    if (isOnCourt) return null;
+
                     const isDisabled = isSelectionLocked && selectedPlayerId !== p.id;
 
                     return (

@@ -1,45 +1,90 @@
 import { Shield } from 'lucide-react';
 
 export const PlayerTag = ({ player, isSelected, theme, isLibero, isBlocker }) => {
-    // [FIX] Safety Check: If theme hasn't loaded or wasn't passed, render nothing.
-    // This allows the app to load without crashing, and it will automatically
-    // re-render once the parent passes the correct theme.
+    // Safety check
     if (!theme) return null;
 
-    // 1. Base Container Styles
-    const baseClass = "relative z-20 w-full py-1 px-2 md:px-3 rounded-lg shadow-sm flex items-center justify-between transition-all duration-200 cursor-pointer select-none border-l-[6px]";
+    // --- State Logic ---
+    const isActive = isSelected;
+    const isSpecialState = isActive || isBlocker;
 
-    // 2. Default State (Inactive)
-    let containerStyle = `bg-white ${theme.border} hover:bg-slate-50 group-hover:scale-[1.02] shadow-sm`;
-    let textStyle = "text-slate-700";
-    let inlineStyle = {};
+    // --- Dynamic Styles ---
 
-    // 3. Libero State (Inactive)
-    if (isLibero && !isSelected) {
-        containerStyle = `bg-white ${theme.border} ${theme.tint} ring-2 ring-inset ring-slate-100`;
-    }
+    // 1. Base Container
+    // Fixed layout: Always flex-row (horizontal).
+    // Consistent padding: px-2 py-1 (tight box).
+    // Overflow hidden: Ensures nothing ever spills out.
+    const baseClasses = `
+        group relative w-full
+        flex items-center justify-between
+        px-2 py-1.5
+        rounded-md
+        border-l-[4px]
+        shadow-sm hover:shadow transition-all duration-75 ease-out
+        cursor-pointer select-none
+        active:scale-[0.98]
+        overflow-hidden
+        bg-white
+    `;
 
-    // 4. Selected State (Active)
-    if (isSelected) {
-        containerStyle = `text-white border-slate-900 scale-105 ring-2 ring-offset-1 ring-black/20 z-30 shadow-xl`;
-        inlineStyle = { backgroundColor: theme.hex };
-    }
+    // 2. State-Specific Colors
+    let stateClasses = "";
+    let inlineStyles = {};
 
-    // 5. Blocker State
     if (isBlocker) {
-        containerStyle = "bg-purple-600 text-white border-purple-900 ring-4 ring-purple-300 z-40 scale-105 shadow-xl";
-        inlineStyle = {};
+        stateClasses = "bg-purple-600 border-purple-800 text-white z-30 ring-1 ring-purple-300";
+    } else if (isActive) {
+        stateClasses = "text-white z-20 ring-1 ring-slate-300 shadow-md";
+        inlineStyles = {
+            backgroundColor: theme.hex,
+            borderColor: theme.hex
+        };
+    } else {
+        stateClasses = "hover:bg-slate-50 text-slate-700";
+        if (isLibero) stateClasses += " bg-slate-50/80"; // Subtle tint for libero
+        inlineStyles = {
+            borderLeftColor: theme.hex
+        };
     }
 
     return (
-        <div className={`${baseClass} ${containerStyle}`} style={inlineStyle}>
-            <div className="flex items-center gap-1">
-                {isLibero && <Shield size={12} className={isSelected || isBlocker ? "text-white/80" : theme.tint} />}
-                <span className="text-xl xl:text-3xl font-black italic tracking-tighter leading-none">{player.number}</span>
+        <div className={`${baseClasses} ${stateClasses}`} style={inlineStyles}>
+
+            {/* LEFT: Number & Icon */}
+            {/* Flex container that won't shrink */}
+            <div className="flex items-center gap-1 md:gap-1.5 flex-shrink-0">
+                {isLibero && (
+                    <Shield
+                        className={`w-3 h-3 ${isSpecialState ? "text-white/90" : "text-slate-400"}`}
+                    />
+                )}
+
+                {/* Responsive Number: 
+                    Tablet: text-lg (18px)
+                    Desktop: text-2xl (24px)
+                */}
+                <span className="text-lg xl:text-2xl font-black italic tracking-tighter leading-none">
+                    {player.number}
+                </span>
             </div>
-            <div className={`flex flex-col items-end leading-tight min-w-0 ${textStyle} ${isSelected || isBlocker ? 'opacity-100' : 'opacity-90'}`}>
-                <span className={`text-[9px] xl:text-xs font-black uppercase tracking-wider ${isSelected || isBlocker ? 'text-white/80' : 'text-slate-400'}`}>{player.pos}</span>
-                <span className={`text-[10px] xl:text-sm font-black uppercase truncate w-full text-right ${isSelected || isBlocker ? 'text-white' : 'text-slate-800'}`}>{player.name}</span>
+
+            {/* RIGHT: Position & Name */}
+            {/* min-w-0 is CRITICAL here. It allows the truncate to work inside a flex item. */}
+            <div className={`flex flex-col items-end justify-center min-w-0 flex-1 pl-1 leading-none ${isSpecialState ? 'opacity-100' : 'opacity-90'}`}>
+
+                {/* Position: Tiny label, hidden on very tight screens if needed, mostly visible */}
+                <span className={`text-[8px] xl:text-[9px] font-black uppercase tracking-wider mb-0.5 ${isSpecialState ? 'text-white/80' : 'text-slate-400'}`}>
+                    {player.pos}
+                </span>
+
+                {/* Name: 
+                    Tablet: text-[10px] (Tiny but readable)
+                    Desktop: text-sm (Standard)
+                    Truncate: Cuts off "... " if name is too long for the box
+                */}
+                <span className={`w-full text-right truncate text-[10px] xl:text-sm font-bold uppercase ${isSpecialState ? 'text-white' : 'text-slate-800'}`}>
+                    {player.name}
+                </span>
             </div>
         </div>
     );

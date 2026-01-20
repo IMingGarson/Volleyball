@@ -1,6 +1,8 @@
 import {
-    Activity, AlertCircle, ArrowRight, ArrowUpCircle, Ban, CheckCircle,
-    Crosshair, Disc, FastForward, Feather, Hand, RotateCcw, Shield,
+    Activity, AlertCircle, ArrowDown, ArrowRight, ArrowUp, ArrowUpCircle, Ban, CheckCircle,
+    Crosshair, Disc, FastForward,
+    Hand,
+    HelpingHand, RotateCcw, Shield,
     Trophy, XCircle, Zap
 } from 'lucide-react';
 
@@ -10,19 +12,16 @@ export default function ControlPanel({ state, actions }) {
 
     // --- SHARED COMPONENTS ---
 
-    /**
-     * ScoutBtn: Soft UI with large typography for quick scanning
-     */
-    const ScoutBtn = ({ label, sub, icon: Icon, color = 'slate', onClick, disabled, className = "" }) => {
-        // Soft, tinted backgrounds for less visual noise
+    // [UPDATED] Removed 'sub' rendering logic since it's no longer used
+    const ScoutBtn = ({ label, icon: Icon, color = 'slate', onClick, disabled, className = "", iconClassName = "" }) => {
         const styles = {
-            green: "bg-emerald-50  text-emerald-800  border-emerald-200  hover:bg-emerald-100  hover:border-emerald-300",
-            red: "bg-rose-50     text-rose-800     border-rose-200     hover:bg-rose-100     hover:border-rose-300",
-            blue: "bg-blue-50     text-blue-800     border-blue-200     hover:bg-blue-100     hover:border-blue-300",
-            orange: "bg-amber-50    text-amber-800    border-amber-200    hover:bg-amber-100    hover:border-amber-300",
-            purple: "bg-violet-50   text-violet-800   border-violet-200   hover:bg-violet-100   hover:border-violet-300",
-            slate: "bg-slate-100   text-slate-700    border-slate-200    hover:bg-slate-200    hover:border-slate-300",
-            white: "bg-white       text-slate-600    border-slate-200    hover:bg-slate-50     hover:border-slate-300",
+            green: "bg-emerald-100/80 text-emerald-700 hover:bg-emerald-200",
+            red: "bg-red-100/80     text-red-700     hover:bg-red-200",
+            blue: "bg-blue-100/80    text-blue-700    hover:bg-blue-200",
+            orange: "bg-orange-100/80  text-orange-700  hover:bg-orange-200",
+            purple: "bg-purple-100/80  text-purple-700  hover:bg-purple-200",
+            slate: "bg-slate-100/80   text-slate-700   hover:bg-slate-200",
+            white: "bg-white          text-slate-800   hover:bg-slate-50 border border-slate-200/60 shadow-sm",
         };
 
         const activeStyle = styles[color] || styles.white;
@@ -33,62 +32,47 @@ export default function ControlPanel({ state, actions }) {
                 disabled={disabled}
                 className={`
                     group relative flex flex-col items-center justify-center 
-                    w-full h-full rounded-lg border-b-4 transition-all duration-75 ease-out
-                    active:border-b-0 active:translate-y-1 active:shadow-inner
+                    w-full h-full rounded-2xl transition-all duration-200 scale-100
+                    active:scale-[0.96] p-2 md:p-3
                     ${disabled ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer'}
                     ${activeStyle}
                     ${className}
                 `}
             >
-                <div className="flex flex-col items-center leading-tight">
-                    {/* Responsive Icon Size */}
-                    {Icon && <Icon className="mb-1 opacity-60 group-hover:opacity-100 w-5 h-5 md:w-6 md:h-6" />}
-
-                    {/* Large, Clear Text */}
-                    <span className="text-sm md:text-base font-black uppercase tracking-tight">
+                <div className="flex flex-col items-center gap-1 md:gap-1.5 leading-none w-full">
+                    {Icon && (
+                        <Icon
+                            className={`w-5 h-5 md:w-6 md:h-6 opacity-80 group-hover:opacity-100 transition-opacity ${iconClassName}`}
+                            strokeWidth={2.5}
+                        />
+                    )}
+                    <span className="text-xs md:text-sm font-bold uppercase tracking-wide text-center">
                         {label}
                     </span>
-
-                    {/* Contextual Subtitle */}
-                    {sub && (
-                        <span className="text-[10px] md:text-xs font-semibold opacity-50 mt-0.5">
-                            {sub}
-                        </span>
-                    )}
                 </div>
             </button>
         );
     };
 
-    /**
-     * HintHeader: "Hint Style"
-     * Stacked layout: Label on top (tiny), Value below (large).
-     * Ensures context is visible on all screen sizes (PC & Tablet).
-     */
     const HintHeader = ({ label, value, highlightValue = false }) => (
-        <div className="flex items-center justify-between px-1 pb-1 mb-1 border-b border-slate-100 min-h-[38px]">
-            {/* Left: Undo Button (Fixed Width) */}
-            <div className="w-[70px] flex justify-start">
+        <div className="flex items-center justify-between w-full mb-2 min-h-[40px] px-1 flex-shrink-0">
+            <div className="w-[80px]">
                 <button
                     onClick={actions.undo}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-md text-[10px] md:text-xs font-bold transition-all active:scale-95"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm w-full"
                 >
-                    <RotateCcw size={12} /> UNDO
+                    <RotateCcw size={14} strokeWidth={2.5} /> <span>Undo</span>
                 </button>
             </div>
-
-            {/* Center: Stacked Hint Label & Dynamic Value */}
-            <div className="flex-1 flex flex-col items-center justify-center leading-none overflow-hidden">
-                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
+            <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-0 md:gap-2 leading-tight">
+                <span className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">
                     {label}
                 </span>
-                <span className={`text-sm md:text-lg font-black uppercase tracking-wide truncate max-w-full ${highlightValue ? 'text-indigo-600' : 'text-slate-800'}`}>
+                <span className={`text-lg md:text-xl font-bold uppercase tracking-tight truncate ${highlightValue ? 'text-blue-600' : 'text-slate-900'}`}>
                     {value}
                 </span>
             </div>
-
-            {/* Right: Spacer to keep center alignment perfect */}
-            <div className="w-[70px]"></div>
+            <div className="w-[80px]"></div>
         </div>
     );
 
@@ -99,19 +83,19 @@ export default function ControlPanel({ state, actions }) {
         if (matchPhase === 'SERVE' && p) {
             const step = !rallyData.serveType ? 1 : 2;
             return (
-                <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <HintHeader label="Service" value={p.name} highlightValue />
+                <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <HintHeader label="SERVICE" value={p.name} highlightValue />
                     {step === 1 ? (
-                        <div className="grid grid-cols-3 gap-2 flex-1">
+                        <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1 min-h-0 pb-2">
                             <ScoutBtn label="Float" color="white" icon={Disc} onClick={() => actions.setServeType('FLOAT')} />
                             <ScoutBtn label="Topspin" color="white" icon={Zap} onClick={() => actions.setServeType('TOPSPIN')} />
                             <ScoutBtn label="Jump" color="white" icon={ArrowUpCircle} onClick={() => actions.setServeType('JUMP')} />
                         </div>
                     ) : (
-                        <div className="grid grid-cols-3 gap-2 flex-1">
-                            <ScoutBtn label="Ace" sub="Point" color="green" icon={Trophy} onClick={() => actions.setServeResult('ACE')} />
-                            <ScoutBtn label="In Play" sub="Rally" color="blue" icon={ArrowRight} onClick={() => actions.setServeResult('IN_PLAY')} />
-                            <ScoutBtn label="Error" sub="Fault" color="red" icon={XCircle} onClick={() => actions.setServeResult('ERROR')} />
+                        <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1 min-h-0 pb-2">
+                            <ScoutBtn label="Ace" color="green" icon={Trophy} onClick={() => actions.setServeResult('ACE')} />
+                            <ScoutBtn label="In Play" color="blue" icon={ArrowRight} onClick={() => actions.setServeResult('IN_PLAY')} />
+                            <ScoutBtn label="Error" color="red" icon={XCircle} onClick={() => actions.setServeResult('ERROR')} />
                         </div>
                     )}
                 </div>
@@ -121,12 +105,12 @@ export default function ControlPanel({ state, actions }) {
         // 2. LANDING ZONES
         if (matchPhase === 'SERVE_LANDING' || matchPhase === 'LANDING') {
             return (
-                <div className="flex flex-col h-full animate-in fade-in duration-200">
-                    <HintHeader label="Location" value="Select Landing Zone" />
-                    <div className="flex-1 flex flex-col items-center justify-center bg-emerald-50/50 rounded-lg border-2 border-dashed border-emerald-300/30 text-emerald-600/80 p-1">
-                        <div className="animate-pulse flex flex-col items-center">
-                            <Crosshair className="w-6 h-6 md:w-8 md:h-8 mb-1" />
-                            <span className="text-xs md:text-sm font-extrabold uppercase tracking-widest text-center">Tap Court Grid</span>
+                <div className="flex flex-col h-full animate-in fade-in duration-300">
+                    <HintHeader label="LOCATION" value="Select Zone" />
+                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-emerald-50/50 rounded-2xl border-2 border-dashed border-emerald-200 text-emerald-700 p-2 mx-1 mb-2">
+                        <div className="animate-pulse flex flex-row items-center gap-2">
+                            <Crosshair className="w-6 h-6" />
+                            <span className="text-sm md:text-lg font-bold uppercase tracking-widest text-center">Tap Court Grid</span>
                         </div>
                     </div>
                 </div>
@@ -136,21 +120,21 @@ export default function ControlPanel({ state, actions }) {
         // 3. RECEPTION
         if (matchPhase === 'RECEPTION') {
             if (!p) return (
-                <div className="flex flex-col h-full animate-in fade-in duration-200">
-                    <HintHeader label="Reception" value="Select Receiver" />
-                    <div className="flex-1 flex items-center justify-center bg-slate-50/50 rounded-lg border-2 border-dashed border-slate-300 text-slate-400">
-                        <span className="font-bold flex items-center gap-2 text-sm md:text-base"><Shield className="w-5 h-5" /> Tap Player on Court</span>
+                <div className="flex flex-col h-full animate-in fade-in duration-300">
+                    <HintHeader label="RECEPTION" value="Select Player" />
+                    <div className="flex-1 min-h-0 flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 mx-1 mb-2">
+                        <span className="font-bold flex items-center gap-2 text-sm md:text-lg"><Shield className="w-6 h-6" /> Tap Player</span>
                     </div>
                 </div>
             );
             return (
-                <div className="flex flex-col h-full animate-in slide-in-from-right-2 duration-200">
-                    <HintHeader label="Reception" value={p.name} highlightValue />
-                    <div className="grid grid-cols-4 gap-2 flex-1">
-                        <ScoutBtn label="Err" sub="0" color="red" icon={XCircle} onClick={() => actions.setReception(0, p)} />
-                        <ScoutBtn label="1" sub="Poor" color="orange" icon={AlertCircle} onClick={() => actions.setReception(1, p)} />
-                        <ScoutBtn label="2" sub="Good" color="blue" icon={Shield} onClick={() => actions.setReception(2, p)} />
-                        <ScoutBtn label="3" sub="Perf" color="green" icon={CheckCircle} onClick={() => actions.setReception(3, p)} />
+                <div className="flex flex-col h-full animate-in slide-in-from-right-2 duration-300">
+                    <HintHeader label="RECEPTION" value={p.name} highlightValue />
+                    <div className="grid grid-cols-4 gap-2 md:gap-3 flex-1 min-h-0 pb-2">
+                        <ScoutBtn label="Error" color="red" icon={XCircle} onClick={() => actions.setReception(0, p)} />
+                        <ScoutBtn label="Poor" color="orange" icon={AlertCircle} onClick={() => actions.setReception(1, p)} />
+                        <ScoutBtn label="Good" color="blue" icon={Shield} onClick={() => actions.setReception(2, p)} />
+                        <ScoutBtn label="Perfect" color="green" icon={CheckCircle} onClick={() => actions.setReception(3, p)} />
                     </div>
                 </div>
             );
@@ -159,16 +143,15 @@ export default function ControlPanel({ state, actions }) {
         // 4. SET
         if (matchPhase === 'SET') {
             if (!p) return (
-                <div className="flex flex-col h-full animate-in fade-in duration-200">
-                    <HintHeader label="Set" value="Select Setter" />
-                    <div className="flex-1 flex flex-row gap-2">
-                        <div className="flex-1 flex items-center justify-center bg-slate-50/50 rounded-lg border-2 border-dashed border-slate-300 text-slate-400">
-                            <span className="font-bold flex items-center gap-2 text-sm md:text-base"><Hand className="w-5 h-5" /> Tap Setter</span>
+                <div className="flex flex-col h-full animate-in fade-in duration-300">
+                    <HintHeader label="SET" value="Select Setter" />
+                    <div className="flex-1 min-h-0 flex flex-row gap-3 h-full mb-2">
+                        <div className="flex-1 flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+                            <span className="font-bold flex items-center gap-2 text-sm md:text-lg"><Hand className="w-6 h-6" /> Tap Setter</span>
                         </div>
-                        <div className="w-1/3">
+                        <div className="w-1/3 h-full">
                             <ScoutBtn
                                 label="No Set"
-                                sub="Atk on 2"
                                 color="orange"
                                 icon={FastForward}
                                 onClick={actions.skipSet}
@@ -178,12 +161,13 @@ export default function ControlPanel({ state, actions }) {
                 </div>
             );
             return (
-                <div className="flex flex-col h-full animate-in slide-in-from-right-2 duration-200">
-                    <HintHeader label="Set Call" value={p.name} highlightValue />
-                    <div className="grid grid-cols-4 gap-2 flex-1">
-                        {['High', 'Quick', 'Pipe', 'Dump'].map(t => (
-                            <ScoutBtn key={t} label={t} color="white" onClick={() => actions.setSetType(t)} />
-                        ))}
+                <div className="flex flex-col h-full animate-in slide-in-from-right-2 duration-300">
+                    <HintHeader label="SET CALL" value={p.name} highlightValue />
+                    <div className="grid grid-cols-4 gap-2 md:gap-3 flex-1 min-h-0 pb-2">
+                        <ScoutBtn label="High" icon={ArrowUp} color="white" onClick={() => actions.setSetType('High')} />
+                        <ScoutBtn label="Quick" icon={Zap} color="white" onClick={() => actions.setSetType('Quick')} />
+                        <ScoutBtn label="Pipe" icon={ArrowUpCircle} color="white" onClick={() => actions.setSetType('Pipe')} />
+                        <ScoutBtn label="Dump" icon={ArrowDown} color="white" onClick={() => actions.setSetType('Dump')} />
                     </div>
                 </div>
             );
@@ -192,20 +176,20 @@ export default function ControlPanel({ state, actions }) {
         // 5. ATTACK
         if (matchPhase === 'ATTACK') {
             if (!p) return (
-                <div className="flex flex-col h-full animate-in fade-in duration-200">
-                    <HintHeader label="Attack" value="Select Attacker" />
-                    <div className="flex-1 flex items-center justify-center bg-slate-50/50 rounded-lg border-2 border-dashed border-slate-300 text-slate-400">
-                        <span className="font-bold flex items-center gap-2 text-sm md:text-base"><Activity className="w-5 h-5" /> Tap Attacker</span>
+                <div className="flex flex-col h-full animate-in fade-in duration-300">
+                    <HintHeader label="ATTACK" value="Select Player" />
+                    <div className="flex-1 min-h-0 flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 mx-1 mb-2">
+                        <span className="font-bold flex items-center gap-2 text-sm md:text-lg"><Activity className="w-6 h-6" /> Tap Attacker</span>
                     </div>
                 </div>
             );
             return (
-                <div className="flex flex-col h-full animate-in slide-in-from-right-2 duration-200">
-                    <HintHeader label="Attack" value={p.name} highlightValue />
-                    <div className="grid grid-cols-3 gap-2 flex-1">
-                        <ScoutBtn label="Spike" sub="Hard" color="slate" icon={Zap} onClick={() => actions.setAttackType('Spike')} />
-                        <ScoutBtn label="Tip" sub="Soft" color="white" icon={Feather} onClick={() => actions.setAttackType('Tip')} />
-                        <ScoutBtn label="Back Row" sub="Pipe/Bic" color="white" icon={ArrowUpCircle} onClick={() => actions.setAttackType('BackRow')} />
+                <div className="flex flex-col h-full animate-in slide-in-from-right-2 duration-300">
+                    <HintHeader label="ATTACK" value={p.name} highlightValue />
+                    <div className="grid grid-cols-3 gap-3 md:gap-4 flex-1 min-h-0 pb-2">
+                        <ScoutBtn label="Spike" color="white" icon={Zap} onClick={() => actions.setAttackType('Spike')} />
+                        <ScoutBtn label="Tip" color="white" icon={HelpingHand} iconClassName="rotate-180 scale-x-[-1]" onClick={() => actions.setAttackType('Tip')} />
+                        <ScoutBtn label="Back Row" color="white" icon={ArrowUpCircle} onClick={() => actions.setAttackType('BackRow')} />
                     </div>
                 </div>
             );
@@ -214,13 +198,13 @@ export default function ControlPanel({ state, actions }) {
         // 6. DIG / DECISION
         if (matchPhase === 'DIG_DECISION') {
             return (
-                <div className="flex flex-col h-full animate-in fade-in duration-200">
-                    <HintHeader label="Result" value={p ? p.name : "Rally Outcome"} highlightValue />
-                    <div className="grid grid-cols-4 gap-2 flex-1">
-                        <ScoutBtn label="Kill" sub="Point" color="green" icon={Trophy} onClick={() => actions.setAttackResult('KILL')} />
-                        <ScoutBtn label="Dig" sub="Cont." color="blue" icon={Shield} onClick={() => actions.setAttackResult('DIG')} />
-                        <ScoutBtn label="Block" sub="Deflect" color="purple" icon={Ban} onClick={() => actions.blockDetected()} />
-                        <ScoutBtn label="Error" sub="Out/Net" color="red" icon={XCircle} onClick={() => actions.setAttackResult('ERROR')} />
+                <div className="flex flex-col h-full animate-in fade-in duration-300">
+                    <HintHeader label="RESULT" />
+                    <div className="grid grid-cols-4 gap-2 md:gap-3 flex-1 min-h-0 pb-2">
+                        <ScoutBtn label="Kill" color="green" icon={Trophy} onClick={() => actions.setAttackResult('KILL')} />
+                        <ScoutBtn label="Dig" color="blue" icon={Shield} onClick={() => actions.setAttackResult('DIG')} />
+                        <ScoutBtn label="Block" color="purple" icon={Ban} onClick={() => actions.blockDetected()} />
+                        <ScoutBtn label="Error" color="red" icon={XCircle} onClick={() => actions.setAttackResult('ERROR')} />
                     </div>
                 </div>
             );
@@ -230,12 +214,12 @@ export default function ControlPanel({ state, actions }) {
         if (matchPhase === 'BLOCK_RESULT') {
             return (
                 <div className="flex flex-col h-full animate-in zoom-in-95 duration-300">
-                    <HintHeader label="Defense" value="Block Outcome" />
-                    <div className="grid grid-cols-4 gap-2 flex-1">
-                        <ScoutBtn label="Shut" sub="Point" color="purple" icon={Ban} onClick={() => actions.blockOutcome('SHUTDOWN')} />
-                        <ScoutBtn label="Soft" sub="Play On" color="blue" icon={Activity} onClick={() => actions.blockOutcome('SOFT_BLOCK')} />
-                        <ScoutBtn label="Cover" sub="Rebound" color="orange" icon={RotateCcw} onClick={() => actions.blockOutcome('REBOUND')} />
-                        <ScoutBtn label="Tool" sub="Out" color="green" icon={Trophy} onClick={() => actions.blockOutcome('TOUCH_OUT')} />
+                    <HintHeader label="BLOCK" value="Outcome" />
+                    <div className="grid grid-cols-4 gap-2 md:gap-3 flex-1 min-h-0 pb-2">
+                        <ScoutBtn label="Shut" color="purple" icon={Ban} onClick={() => actions.blockOutcome('SHUTDOWN')} />
+                        <ScoutBtn label="Soft" color="blue" icon={Activity} onClick={() => actions.blockOutcome('SOFT_BLOCK')} />
+                        <ScoutBtn label="Cover" color="orange" icon={RotateCcw} onClick={() => actions.blockOutcome('REBOUND')} />
+                        <ScoutBtn label="Tool" color="green" icon={Trophy} onClick={() => actions.blockOutcome('TOUCH_OUT')} />
                     </div>
                 </div>
             );
@@ -245,14 +229,14 @@ export default function ControlPanel({ state, actions }) {
         if (matchPhase === 'SELECT_BLOCKERS') {
             return (
                 <div className="flex flex-col h-full animate-in fade-in duration-300">
-                    <HintHeader label="Stats" value="Assign Blockers" />
-                    <div className="flex flex-col flex-1 gap-2">
-                        <div className="flex-1 bg-violet-50/50 rounded-lg border-2 border-violet-100 flex items-center justify-center p-2">
-                            <span className="text-lg md:text-xl font-black text-violet-800 text-center uppercase tracking-tight">
+                    <HintHeader label="DEFENSE" value="Assign Blockers" />
+                    <div className="flex flex-col flex-1 min-h-0 gap-2 pb-2">
+                        <div className="flex-1 bg-violet-50 rounded-2xl border-2 border-violet-100 flex items-center justify-center p-2 mx-1">
+                            <span className="text-base md:text-xl font-bold text-violet-900 text-center uppercase tracking-tight">
                                 {rallyData.blockers.length > 0 ? rallyData.blockers.map(b => b.name).join(' + ') : 'Select Players...'}
                             </span>
                         </div>
-                        <div className="h-10 md:h-12">
+                        <div className="h-10 md:h-12 w-full px-1">
                             <ScoutBtn
                                 label="Confirm Block"
                                 color="purple"
@@ -269,9 +253,9 @@ export default function ControlPanel({ state, actions }) {
         if (matchPhase === 'COVER') {
             return (
                 <div className="flex flex-col h-full animate-in fade-in duration-300">
-                    <HintHeader label="Defense" value="Select Cover" />
-                    <div className="flex-1 flex items-center justify-center bg-orange-50/50 rounded-lg border-2 border-dashed border-orange-200 text-orange-500 animate-pulse">
-                        <span className="font-bold flex items-center gap-2 text-sm md:text-base"><Shield className="w-5 h-5" /> Tap Player</span>
+                    <HintHeader label="COVER" value="Select Player" />
+                    <div className="flex-1 min-h-0 flex items-center justify-center bg-orange-50 rounded-2xl border-2 border-dashed border-orange-200 text-orange-600 animate-pulse mx-1 mb-2">
+                        <span className="font-bold flex items-center gap-2 text-base md:text-lg"><Shield className="w-6 h-6" /> Tap Player</span>
                     </div>
                 </div>
             );
@@ -281,16 +265,14 @@ export default function ControlPanel({ state, actions }) {
         if (matchPhase === 'SUBSTITUTION' || matchPhase === 'LIBERO_SWAP') {
             return (
                 <div className="flex flex-col h-full animate-in fade-in duration-300">
-                    <HintHeader label="Action" value={matchPhase.replace('_', ' ')} />
-                    <div className="flex-1 flex flex-col items-center justify-center gap-2 bg-slate-50/50 rounded-lg border border-slate-200 p-2">
-                        <div className="text-center w-full max-w-sm">
-                            <div className={`p-2 rounded border text-xs md:text-sm font-bold transition-all mb-2 ${!selectedPlayer ? 'bg-white border-blue-500 text-blue-600 shadow-md scale-105' : 'bg-slate-100 text-slate-400 border-transparent'}`}>
-                                1. Select Bench/Libero
-                            </div>
-                            <div className="h-4 w-0.5 bg-slate-300 mx-auto mb-2"></div>
-                            <div className={`p-2 rounded border text-xs md:text-sm font-bold transition-all ${selectedPlayer ? 'bg-white border-blue-500 text-blue-600 shadow-md scale-105' : 'bg-slate-100 text-slate-400 border-transparent'}`}>
-                                2. Select Court Player
-                            </div>
+                    <HintHeader label="ACTION" value={matchPhase.replace('_', ' ')} />
+                    <div className="flex-1 min-h-0 flex flex-row items-center justify-center gap-4 bg-slate-50/50 rounded-2xl border border-slate-200 p-2 mx-1 mb-2">
+                        <div className={`flex-1 p-4 rounded-xl text-sm font-bold text-center transition-all ${!selectedPlayer ? 'bg-white text-blue-700 shadow-md ring-2 ring-blue-100' : 'bg-slate-100 text-slate-400'}`}>
+                            1. Bench/Libero
+                        </div>
+                        <ArrowRight size={24} className="text-slate-300" />
+                        <div className={`flex-1 p-4 rounded-xl text-sm font-bold text-center transition-all ${selectedPlayer ? 'bg-white text-blue-700 shadow-md ring-2 ring-blue-100' : 'bg-slate-100 text-slate-400'}`}>
+                            2. Court Player
                         </div>
                     </div>
                 </div>
@@ -301,9 +283,8 @@ export default function ControlPanel({ state, actions }) {
     };
 
     return (
-        // Optimized Height: h-32 (mobile) to h-40 (tablet/desktop)
-        <div className="h-32 md:h-40 w-full bg-white/95 backdrop-blur-xl border-t border-slate-200 p-1 md:p-2 z-40 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] flex-shrink-0">
-            <div className="h-full w-full max-w-6xl mx-auto">
+        <div className="h-32 md:h-40 w-full bg-white/95 backdrop-blur-2xl border-t border-slate-200/60 pt-2 px-2 md:pt-4 md:px-4 pb-5 md:pb-8 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] flex-shrink-0">
+            <div className="h-full w-full max-w-6xl mx-auto flex flex-col">
                 <Content />
             </div>
         </div>

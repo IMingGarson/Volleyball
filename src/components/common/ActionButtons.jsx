@@ -4,30 +4,48 @@ import { PlayerTag } from './PlayerTag';
 // --- Generic Buttons ---
 
 export const PrettyButton = ({ onClick, title, subtitle, icon: Icon, colorClass }) => (
-    <button onClick={onClick} className={`relative h-full w-full rounded-xl border flex flex-col items-center justify-center transition-all duration-200 active:scale-95 shadow-sm hover:shadow-md ${colorClass}`}>
-        {Icon && <Icon size={24} className="mb-1 opacity-90" />}
-        <span className="text-sm md:text-base font-black uppercase leading-none text-center">{title}</span>
-        {subtitle && <span className="text-[10px] md:text-xs font-bold opacity-70 uppercase mt-0.5 hidden xl:block">{subtitle}</span>}
+    <button
+        onClick={onClick}
+        className={`
+            relative h-full w-full rounded-lg border-b-4 flex flex-col items-center justify-center 
+            transition-all duration-75 active:border-b-0 active:translate-y-1 active:scale-[0.98]
+            ${colorClass}
+        `}
+    >
+        {Icon && <Icon className="mb-0.5 opacity-80 w-5 h-5 md:w-6 md:h-6" />}
+        <span className="text-xs md:text-sm xl:text-base font-black uppercase leading-none text-center tracking-tight">
+            {title}
+        </span>
+        {subtitle && (
+            <span className="text-[9px] md:text-[10px] font-bold opacity-60 uppercase mt-0.5">
+                {subtitle}
+            </span>
+        )}
     </button>
 );
 
 export const ActionBtn = ({ onClick, children, variant = 'neutral', className = '' }) => {
-    const base = "h-full rounded-lg font-black text-xs uppercase tracking-wider flex items-center justify-center transition-all active:scale-95 shadow-md hover:shadow-lg border-b-4 active:border-b-0 active:translate-y-1";
+    const base = "h-full rounded-lg font-black text-[10px] md:text-xs uppercase tracking-wider flex items-center justify-center transition-all active:scale-95 border-b-4 active:border-b-0 active:translate-y-1";
+
     const variants = {
-        success: "bg-green-500 border-green-700 text-white hover:bg-green-400",
-        danger: "bg-red-500 border-red-700 text-white hover:bg-red-400",
+        success: "bg-emerald-500 border-emerald-700 text-white hover:bg-emerald-400",
+        danger: "bg-rose-500 border-rose-700 text-white hover:bg-rose-400",
         primary: "bg-blue-600 border-blue-800 text-white hover:bg-blue-500",
-        neutral: "bg-slate-100 border-slate-300 text-slate-700 hover:bg-white hover:text-black",
+        neutral: "bg-slate-100 border-slate-300 text-slate-600 hover:bg-white hover:text-slate-800",
         dark: "bg-slate-800 border-black text-white hover:bg-slate-700"
     };
-    return <button onClick={onClick} className={`${base} ${variants[variant]} ${className}`}>{children}</button>;
+
+    return (
+        <button onClick={onClick} className={`${base} ${variants[variant]} ${className}`}>
+            {children}
+        </button>
+    );
 };
 
 // --- Domain Specific Buttons ---
 
-// [FIX] Updated to accept 'theme' and pass it to PlayerTag
 export const BenchCard = ({ player, theme, onClick, isSelected }) => (
-    <div onClick={() => onClick(player)} className="w-full cursor-pointer hover:scale-[1.02] transition-transform">
+    <div onClick={() => onClick(player)} className="w-full">
         <PlayerTag
             player={player}
             isSelected={isSelected}
@@ -37,30 +55,52 @@ export const BenchCard = ({ player, theme, onClick, isSelected }) => (
     </div>
 );
 
-// [FIX] Updated to use theme colors
+/**
+ * ChallengeButton
+ * Updated Layout: Single Row
+ * [Icon + Text] ---------- [Counter Badge]
+ */
 export const ChallengeButton = ({ onClick, used, limit, theme }) => {
     const isDisabled = used >= limit;
-    // Fallback to indigo if theme is missing during initial render/error states
     const hex = theme?.hex || '#4f46e5';
 
     return (
         <button
             onClick={onClick}
             disabled={isDisabled}
-            className={`w-full group text-white font-black py-3 rounded-lg shadow-lg border-b-4 active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-1.5 overflow-hidden relative 
-            ${isDisabled ? 'bg-slate-300 border-slate-400 cursor-not-allowed' : 'hover:brightness-110'}`}
-            style={!isDisabled ? { backgroundColor: hex, borderColor: hex } : {}}
+            className={`
+                w-full group relative overflow-hidden
+                py-2 px-2 md:px-3 rounded-lg border-b-4 transition-all duration-100
+                flex items-center justify-between
+                text-white font-black uppercase tracking-widest
+                active:border-b-0 active:translate-y-1 active:scale-[0.98]
+                ${isDisabled ? 'bg-slate-300 border-slate-400 cursor-not-allowed text-slate-100' : 'hover:brightness-110'}
+            `}
+            style={!isDisabled ? { backgroundColor: hex, borderColor: 'rgba(0,0,0,0.2)' } : {}}
         >
-            <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <MonitorPlay size={18} className="relative z-10" />
-            <span className="relative z-10 uppercase tracking-widest text-xs">
-                Challenge <span className="opacity-70 ml-1">({used}/{limit})</span>
-            </span>
+            {/* Left: Icon & Label */}
+            <div className="flex items-center gap-1.5 md:gap-2">
+                <MonitorPlay className="opacity-90 group-hover:scale-110 transition-transform w-3 h-3 md:w-4 md:h-4 xl:w-5 xl:h-5" />
+                <span className="text-[9px] md:text-[10px] xl:text-xs leading-none mt-0.5">
+                    CHALLENGE
+                </span>
+            </div>
+
+            {/* Right: Counter Badge */}
+            <div className="bg-black/20 rounded px-1.5 py-0.5 flex items-center justify-center">
+                <span className="text-[9px] md:text-[10px] font-bold leading-none text-white/90">
+                    {used}/{limit}
+                </span>
+            </div>
         </button>
     );
 };
 
-// [FIX] Updated to use theme colors
+/**
+ * TimeoutButton
+ * Updated Layout: Single Row
+ * [Icon + Text] ---------- [Counter Badge]
+ */
 export const TimeoutButton = ({ onClick, used, limit, disabled, theme }) => {
     const isDisabled = used >= limit || disabled;
     const hex = theme?.hex || '#f59e0b';
@@ -69,15 +109,30 @@ export const TimeoutButton = ({ onClick, used, limit, disabled, theme }) => {
         <button
             onClick={onClick}
             disabled={isDisabled}
-            className={`w-full group text-white font-black py-3 rounded-lg shadow-lg border-b-4 active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-1.5 overflow-hidden relative
-            ${isDisabled ? 'bg-slate-300 border-slate-400 cursor-not-allowed' : 'hover:brightness-110'}`}
-            style={!isDisabled ? { backgroundColor: hex, borderColor: hex } : {}}
+            className={`
+                w-full group relative overflow-hidden
+                py-2 px-2 md:px-3 rounded-lg border-b-4 transition-all duration-100
+                flex items-center justify-between
+                text-white font-black uppercase tracking-widest
+                active:border-b-0 active:translate-y-1 active:scale-[0.98]
+                ${isDisabled ? 'bg-slate-300 border-slate-400 cursor-not-allowed text-slate-100' : 'hover:brightness-110'}
+            `}
+            style={!isDisabled ? { backgroundColor: hex, borderColor: 'rgba(0,0,0,0.2)' } : {}}
         >
-            <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <PauseCircle size={18} className="relative z-10" />
-            <span className="relative z-10 uppercase tracking-widest text-xs">
-                Timeout <span className="opacity-70 ml-1">({used}/{limit})</span>
-            </span>
+            {/* Left: Icon & Label */}
+            <div className="flex items-center gap-1.5 md:gap-2">
+                <PauseCircle className="opacity-90 group-hover:scale-110 transition-transform w-3 h-3 md:w-4 md:h-4 xl:w-5 xl:h-5" />
+                <span className="text-[9px] md:text-[10px] xl:text-xs leading-none mt-0.5">
+                    TIMEOUT
+                </span>
+            </div>
+
+            {/* Right: Counter Badge */}
+            <div className="bg-black/20 rounded px-1.5 py-0.5 flex items-center justify-center">
+                <span className="text-[9px] md:text-[10px] font-bold leading-none text-white/90">
+                    {used}/{limit}
+                </span>
+            </div>
         </button>
     );
 };

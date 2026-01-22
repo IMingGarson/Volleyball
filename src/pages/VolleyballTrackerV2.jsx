@@ -33,18 +33,15 @@ export default function VolleyballTracker() {
     const [showStats, setShowStats] = useState(false);
 
     // Sidebar State
-    // Initialize based on current width
-    const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(window.innerWidth >= 1280);
-    const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(window.innerWidth >= 1280);
+    const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(window.innerWidth >= 1440);
+    const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(window.innerWidth >= 1440);
 
-    // [FIX] Resize Listener for DevTools
-    // This ensures that when you switch device mode in Chrome DevTools, 
-    // the UI reacts immediately without requiring a page refresh.
+    // Resize Listener
     useEffect(() => {
         const handleResize = () => {
-            const isDesktop = window.innerWidth > 1440;
-            setIsLeftSidebarOpen(isDesktop);
-            setIsRightSidebarOpen(isDesktop);
+            const isLargeDesktop = window.innerWidth >= 1440;
+            setIsLeftSidebarOpen(isLargeDesktop);
+            setIsRightSidebarOpen(isLargeDesktop);
         };
 
         window.addEventListener('resize', handleResize);
@@ -106,7 +103,7 @@ export default function VolleyballTracker() {
         setShowChallengeTeam(null);
     };
 
-    // Toggle Button Component
+    // Toggle Button
     const SidebarToggle = ({ side, isOpen, onClick }) => {
         const isLeft = side === 'left';
         const Icon = isLeft
@@ -144,15 +141,10 @@ export default function VolleyballTracker() {
             <MatchHeader score={state.score} phase={state.matchPhase} />
 
             {/* --- MAIN STAGE --- */}
-            <div className="flex-1 flex overflow-hidden relative">
+            <div className="flex-1 flex overflow-hidden relative min-h-0">
 
-                {/* --- LEFT SIDEBAR CONTAINER (Squeezable) --- */}
-                <div
-                    className={`
-                        transition-all duration-300 ease-in-out relative flex-shrink-0
-                        ${isLeftSidebarOpen ? 'w-32 lg:w-40 xl:w-80 opacity-100' : 'w-0 opacity-0'}
-                    `}
-                >
+                {/* --- LEFT SIDEBAR --- */}
+                <div className={`transition-all duration-300 ease-in-out relative flex-shrink-0 ${isLeftSidebarOpen ? 'w-32 lg:w-40 xl:w-80 opacity-100' : 'w-0 opacity-0'}`}>
                     <div className="w-32 lg:w-40 xl:w-80 h-full absolute top-0 right-0">
                         <BenchSidebar
                             team="home"
@@ -165,20 +157,20 @@ export default function VolleyballTracker() {
                     </div>
                 </div>
 
-                {/* --- CENTER COURT --- */}
-                <div className="flex-1 flex flex-col relative min-w-0 bg-slate-100 transition-all duration-300 z-10">
+                {/* --- CENTER COURT AREA --- */}
+                <div className="flex-1 flex flex-col relative min-w-0 bg-slate-100 transition-all duration-300 z-10 min-h-0">
 
-                    {/* Toggle Buttons */}
                     <SidebarToggle side="left" isOpen={isLeftSidebarOpen} onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)} />
                     <SidebarToggle side="right" isOpen={isRightSidebarOpen} onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)} />
 
                     {/* Court Wrapper */}
-                    <div className="flex-1 flex items-center justify-center relative overflow-hidden p-1 md:p-4 mt-8 md:mt-12">
+                    {/* [FIX] Margins: Slightly tighter (mt-8/mb-8) to keep Ref buttons safe on iPad Air */}
+                    <div className="flex-1 flex items-center justify-center relative p-1 md:p-2 mt-8 md:mt-12 mb-8 md:mb-16 min-h-0">
 
-                        <div className="w-full max-w-[98%] aspect-[1.8/1] md:aspect-[2/1] flex relative shadow-xl rounded-sm overflow-hidden bg-white border-4 border-white">
+                        <div className="w-full max-w-[98%] max-h-full aspect-[1.8/1] md:aspect-[2/1] flex relative shadow-xl rounded-sm bg-white border-4 border-white z-0">
 
-                            {/* Left Half */}
-                            <div className="flex-1 relative border-r-2 border-slate-200">
+                            {/* Home Side */}
+                            <div className="flex-1 relative border-r-2 border-slate-200 overflow-hidden">
                                 <CourtDisplay
                                     side="left"
                                     rotation={state.rotations.home}
@@ -193,21 +185,40 @@ export default function VolleyballTracker() {
                             </div>
 
                             {/* Net & Ref Controls */}
-                            <div className="w-1.5 md:w-2 h-full bg-slate-800 relative z-30 flex items-center justify-center">
+                            <div className="w-1.5 md:w-2 h-full bg-slate-800 relative z-20 flex items-center justify-center">
                                 <div className="h-full w-full bg-slate-800 shadow-xl"></div>
-                                <button onClick={() => setShowReferee(true)} className="absolute -top-12 md:-top-16 flex flex-col items-center z-50 hover:scale-110 transition-transform cursor-pointer group">
-                                    <span className="hidden md:block text-[9px] font-black text-slate-500 mb-1 bg-white/90 px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider">R2 Assist</span>
-                                    <div className="bg-white rounded-full p-1 md:p-1.5 border-2 border-slate-800 shadow-md group-hover:border-yellow-500"><User className="w-4 h-4 md:w-5 md:h-5 text-slate-800" /></div>
+
+                                {/* R2 Assist (Top) */}
+                                {/* [FIX] Position: -top-8 (closer). Text: text-[7px] (smaller on tablet). Icon: w-3 h-3. */}
+                                <button onClick={() => setShowReferee(true)} className="absolute -top-8 xl:-top-14 flex flex-col items-center z-50 hover:scale-110 transition-transform cursor-pointer group">
+                                    <span className="hidden md:block text-[7px] xl:text-[9px] font-black text-slate-500 mb-0.5 bg-white/90 px-1.5 py-0.5 rounded shadow-sm uppercase tracking-wider whitespace-nowrap">
+                                        R2 Assist
+                                    </span>
+                                    <div className="bg-white rounded-full p-1 xl:p-1.5 border-2 border-slate-800 shadow-md group-hover:border-yellow-500">
+                                        <User className="w-3 h-3 xl:w-5 xl:h-5 text-slate-800" />
+                                    </div>
                                 </button>
-                                <div className="absolute bg-white border border-slate-900 text-slate-900 text-[8px] md:text-[9px] font-black px-1 py-0.5 rounded-full shadow-lg tracking-widest z-40 select-none">NET</div>
-                                <button onClick={() => setShowReferee(true)} className="absolute -bottom-14 md:-bottom-20 flex flex-col items-center z-50 hover:scale-110 transition-transform cursor-pointer group">
-                                    <div className="relative"><div className="w-8 h-8 md:w-10 md:h-10 bg-slate-800 rounded-lg flex items-center justify-center border-2 border-slate-600 shadow-xl relative z-10 group-hover:border-yellow-400"><User className="w-5 h-5 md:w-6 md:h-6 text-white" /></div><div className="absolute -bottom-1.5 -left-0.5 w-1 h-3 bg-slate-700 skew-x-12"></div><div className="absolute -bottom-1.5 -right-0.5 w-1 h-3 bg-slate-700 -skew-x-12"></div></div>
-                                    <span className="text-[9px] md:text-[10px] font-black text-white mt-1 md:mt-1.5 bg-slate-800 px-2 py-0.5 rounded shadow-md border border-slate-600 uppercase tracking-wider group-hover:text-yellow-300">R1 CALL</span>
+
+                                <div className="absolute bg-white border border-slate-900 text-slate-900 text-[6px] xl:text-[9px] font-black px-1 py-0.5 rounded-full shadow-lg tracking-widest z-40 select-none">NET</div>
+
+                                {/* R1 Call (Bottom) */}
+                                {/* [FIX] Position: -bottom-10 (closer). Text: text-[7px]. Icon: w-3.5 h-3.5. */}
+                                <button onClick={() => setShowReferee(true)} className="absolute -bottom-10 xl:-bottom-16 flex flex-col items-center z-50 hover:scale-110 transition-transform cursor-pointer group">
+                                    <div className="relative">
+                                        <div className="w-6 h-6 xl:w-10 xl:h-10 bg-slate-800 rounded-lg flex items-center justify-center border-2 border-slate-600 shadow-xl relative z-10 group-hover:border-yellow-400">
+                                            <User className="w-3.5 h-3.5 xl:w-6 xl:h-6 text-white" />
+                                        </div>
+                                        <div className="absolute -bottom-1.5 -left-0.5 w-1 h-3 bg-slate-700 skew-x-12"></div>
+                                        <div className="absolute -bottom-1.5 -right-0.5 w-1 h-3 bg-slate-700 -skew-x-12"></div>
+                                    </div>
+                                    <span className="text-[7px] xl:text-[10px] font-black text-white mt-1 xl:mt-1.5 bg-slate-800 px-2 py-0.5 rounded shadow-md border border-slate-600 uppercase tracking-wider group-hover:text-yellow-300 whitespace-nowrap">
+                                        R1 CALL
+                                    </span>
                                 </button>
                             </div>
 
-                            {/* Right Half */}
-                            <div className="flex-1 relative border-l-2 border-slate-200">
+                            {/* Away Side */}
+                            <div className="flex-1 relative border-l-2 border-slate-200 overflow-hidden">
                                 <CourtDisplay
                                     side="right"
                                     rotation={state.rotations.away}
@@ -227,13 +238,8 @@ export default function VolleyballTracker() {
                     <ControlPanel state={state} actions={actions} />
                 </div>
 
-                {/* --- RIGHT SIDEBAR CONTAINER (Squeezable) --- */}
-                <div
-                    className={`
-                        transition-all duration-300 ease-in-out relative flex-shrink-0
-                        ${isRightSidebarOpen ? 'w-32 lg:w-40 xl:w-80 opacity-100' : 'w-0 opacity-0'}
-                    `}
-                >
+                {/* --- RIGHT SIDEBAR --- */}
+                <div className={`transition-all duration-300 ease-in-out relative flex-shrink-0 ${isRightSidebarOpen ? 'w-32 lg:w-40 xl:w-80 opacity-100' : 'w-0 opacity-0'}`}>
                     <div className="w-32 lg:w-40 xl:w-80 h-full absolute top-0 left-0">
                         <BenchSidebar
                             team="away"
